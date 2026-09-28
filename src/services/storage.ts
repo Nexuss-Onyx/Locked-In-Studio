@@ -3,14 +3,26 @@ import { parseTimeToMinutes } from './markdownProjectParser';
 import { SupabaseService } from './supabase';
 
 const STORAGE_KEYS = {
-  PROJECTS: 'aura_projects_v3',
-  TASKS: 'aura_tasks_v2',
-  SESSIONS: 'aura_sessions_v2',
-  CHANGELOG_REPORTS: 'aura_changelog_reports_v2',
+  PROJECTS: 'locked_in_projects_v4',
+  TASKS: 'locked_in_tasks_v4',
+  SESSIONS: 'locked_in_sessions_v4',
+  CHANGELOG_REPORTS: 'locked_in_changelog_reports_v4',
   SELECTED_WALLPAPER: 'aura_selected_wallpaper_v1',
   WALLPAPER_ROTATIONS: 'aura_wallpaper_rotations_v1',
   CUSTOM_WALLPAPERS: 'aura_custom_wallpapers_v1',
 };
+
+// One-time cleanup of legacy keys containing old synthetic seed tasks & sessions
+try {
+  [
+    'aura_projects_v1', 'aura_projects_v2', 'aura_projects_v3',
+    'aura_tasks_v1', 'aura_tasks_v2',
+    'aura_sessions_v1', 'aura_sessions_v2',
+    'aura_changelog_reports_v1', 'aura_changelog_reports_v2',
+  ].forEach((k) => {
+    localStorage.removeItem(k);
+  });
+} catch {}
 
 /**
  * Extracts real actionable Tasks from a Project's markdown phases & todos
@@ -128,16 +140,16 @@ export const StorageService = {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          // Purge synthetic seed tasks
-          storedTasks = parsed.filter(t => !t.id.startsWith('seed-past-'));
+          storedTasks = parsed;
         }
       } catch {
         storedTasks = [];
       }
     }
 
-    // Extract all real tasks from all active projects
+    // Extract all real tasks from active projects
     const projects = this.getProjects();
+    const validProjectIds = new Set(projects.map(p => p.id));
     const projectTasksMap = new Map<string, Task>();
     
     // 1. Populate all tasks defined in project phases
@@ -158,10 +170,24 @@ export const StorageService = {
           completedAt: stored.completedAt,
           focusMinutesLogged: stored.focusMinutesLogged || projTask.focusMinutesLogged,
         });
-      } else if (!stored.id.startsWith('seed-past-')) {
-        // Standalone user-created task
-        projectTasksMap.set(stored.id, stored);
+      } else if (!stored.projectId || stored.projectId === 'standalone' || stored.projectId === 'unassigned') {
+        // True standalone user-created task (no project)
+        if (
+          !stored.id.startsWith('seed-') && 
+          !stored.id.startsWith('task-1') && 
+          !stored.id.startsWith('task-2') && 
+          !stored.id.startsWith('task-3') && 
+          !stored.id.startsWith('task-4') && 
+          !stored.id.startsWith('task-5') &&
+          !stored.title.includes('Lake Como') &&
+          !stored.title.includes('Haute Couture') &&
+          !stored.title.includes('lookbook') &&
+          !stored.title.includes('manifesto')
+        ) {
+          projectTasksMap.set(stored.id, stored);
+        }
       }
+      // If stored.projectId is not in validProjectIds, it is an orphaned task from a deleted project and is dropped
     }
 
     const allRealTasks = Array.from(projectTasksMap.values());
