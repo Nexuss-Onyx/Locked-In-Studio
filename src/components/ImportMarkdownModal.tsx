@@ -1,37 +1,60 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
   Upload, 
   Check, 
-  HelpCircle,
-  ArrowRight,
-  Plus
+  HelpCircle, 
+  ArrowRight, 
+  Plus, 
+  FileText, 
+  Files, 
+  CheckCircle2, 
+  ArrowLeft, 
+  Code2, 
+  Eye, 
+  Clock, 
+  Layers,
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
-import { parseProjectMarkdown, calculateProjectStats } from '../services/markdownProjectParser';
+import { parseProjectMarkdown, calculateProjectStats, formatMinutesToHHMMSS } from '../services/markdownProjectParser';
 import { Project } from '../types';
 import { soundManager } from '../services/audio';
 
 interface ImportMarkdownModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (parsedData: { name: string; description: string; category: string; rawMarkdown: string; phases: any; estimatedTime?: string; estimatedMinutes?: number }, targetProjectId?: string) => void;
+  onImport: (
+    parsedData: {
+      name: string;
+      description: string;
+      category: string;
+      rawMarkdown: string;
+      phases: any;
+      estimatedTime?: string;
+      estimatedMinutes?: number;
+    },
+    targetProjectId?: string
+  ) => void;
   existingProjects?: Project[];
   defaultProjectId?: string;
 }
 
 const SAMPLE_TEMPLATES = [
   {
-    name: 'Architecture',
+    name: 'Architecture & Design',
+    fileName: 'Villa Bellagio Masterplan.md',
+    sizeLabel: '4.8 KB',
     content: `---
 name: Villa Bellagio Studio
-category: Architecture
+category: Architecture & Heritage
 description: Lake Como private residential estate masterplan and travertine stone specifications.
 EST: 68:00:00
 ---
 
 [ 14h ] - # Phase One: Site Topography
-- [ X ] Aerial drone lidar scan [ 2h ]
+- [ X ] Aerial drone lidar scan of promontory [ 2h ]
 - [ X ] Calibrate geothermal borehole depth [ 3h ]
 - [ ! ] Finalize south loggia travertine fluting [ 4h ]
 
@@ -50,7 +73,9 @@ EST: 68:00:00
 `,
   },
   {
-    name: 'Couture',
+    name: 'Couture & Fashion',
+    fileName: 'Haute Couture Lookbook.md',
+    sizeLabel: '3.6 KB',
     content: `---
 name: Maison Haute Couture
 category: Creative Direction
@@ -75,7 +100,9 @@ EST: 64:00:00
 `,
   },
   {
-    name: 'Horology',
+    name: 'Vintage Horology',
+    fileName: 'Sovereign Heritage Syndicate.md',
+    sizeLabel: '2.9 KB',
     content: `---
 name: Sovereign Heritage Capital
 category: Private Equity
@@ -95,6 +122,32 @@ EST: 36:00:00
   },
 ];
 
+// Helper: Segmented LED VU Meter Bar (matches the Roland/audio aesthetic in user mockup)
+const SegmentedProgressBar: React.FC<{ progress: number; totalSegments?: number }> = ({ 
+  progress, 
+  totalSegments = 46 
+}) => {
+  const activeCount = Math.round((Math.max(0, Math.min(100, progress)) / 100) * totalSegments);
+  
+  return (
+    <div className="flex items-center gap-[3px] w-full py-1 overflow-hidden" role="progressbar" aria-valuenow={progress}>
+      {Array.from({ length: totalSegments }).map((_, i) => {
+        const isActive = i < activeCount;
+        return (
+          <span
+            key={i}
+            className={`h-2.5 w-[3.5px] rounded-[1px] transition-colors duration-150 shrink-0 ${
+              isActive 
+                ? 'bg-[#34D399] shadow-[0_0_4px_rgba(52,211,153,0.8)]' 
+                : 'bg-white/[0.1]'
+            }`}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
 export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
   isOpen,
   onClose,
@@ -102,12 +155,41 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
   existingProjects = [],
   defaultProjectId,
 }) => {
+  // Navigation Stage: 'upload' is primary, then 'editor' on Proceed
+  const [stage, setStage] = useState<'upload' | 'editor'>('upload');
+  
+  // File upload state
+  const [activeFileName, setActiveFileName] = useState<string>(SAMPLE_TEMPLATES[0].fileName);
+  const [activeFileSize, setActiveFileSize] = useState<string>(SAMPLE_TEMPLATES[0].sizeLabel);
+  const [uploadProgress, setUploadProgress] = useState<number>(100);
+  const [isSimulatingUpload, setIsSimulatingUpload] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  // Markdown editor state
   const [markdownText, setMarkdownText] = useState<string>(SAMPLE_TEMPLATES[0].content);
   const [targetMode, setTargetMode] = useState<'new' | 'existing'>('new');
   const [selectedProjectId, setSelectedProjectId] = useState<string>(defaultProjectId || existingProjects[0]?.id || '');
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [showSyntaxGuide, setShowSyntaxGuide] = useState<boolean>(false);
+  const [editorTab, setEditorTab] = useState<'editor' | 'preview' | 'syntax'>('editor');
+  
+  // Toast state
+  const [showToast, setShowToast] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset state when opening
+  useEffect(() => {
+    if (isOpen) {
+      if (defaultProjectId) {
+        setTargetMode('existing');
+        setSelectedProjectId(defaultProjectId);
+        // If syncing existing project with no new file, start directly in editor
+        setStage('editor');
+      } else {
+        setStage('upload');
+        setUploadProgress(100);
+      }
+      setShowToast(false);
+    }
+  }, [isOpen, defaultProjectId]);
 
   if (!isOpen) return null;
 
@@ -116,7 +198,7 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
     id: 'preview',
     name: parsed.name,
     description: parsed.description,
-    color: '#D4AF37',
+    color: '#ABC8A2',
     icon: 'Layers',
     category: parsed.category,
     createdAt: new Date().toISOString(),
@@ -128,12 +210,28 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
 
   const handleFileUpload = (file: File) => {
     if (!file) return;
+    setActiveFileName(file.name);
+    const sizeInKb = (file.size / 1024).toFixed(1);
+    setActiveFileSize(`${sizeInKb} KB`);
+    
+    // Simulate high-speed upload progress
+    setIsSimulatingUpload(true);
+    setUploadProgress(15);
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
       if (content) {
         setMarkdownText(content);
-        soundManager.playTick();
+        
+        // Progress steps
+        setTimeout(() => setUploadProgress(58), 80);
+        setTimeout(() => setUploadProgress(89), 160);
+        setTimeout(() => {
+          setUploadProgress(100);
+          setIsSimulatingUpload(false);
+          soundManager.playTick();
+        }, 240);
       }
     };
     reader.readAsText(file);
@@ -147,8 +245,41 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
     }
   };
 
-  const handleConfirmImport = () => {
+  const handleSelectTemplate = (tpl: typeof SAMPLE_TEMPLATES[0]) => {
+    soundManager.playTick();
+    setActiveFileName(tpl.fileName);
+    setActiveFileSize(tpl.sizeLabel);
+    setMarkdownText(tpl.content);
+    setUploadProgress(100);
+  };
+
+  // PROCEED ACTION: Imports the project, shows Toast, and reveals the styled Editor
+  const handleProceed = () => {
     soundManager.playCompletionChime();
+    
+    // Perform project import
+    onImport(
+      {
+        name: parsed.name,
+        description: parsed.description,
+        category: parsed.category,
+        rawMarkdown: markdownText,
+        phases: parsed.phases,
+        estimatedTime: parsed.estimatedTime,
+        estimatedMinutes: parsed.estimatedMinutes,
+      },
+      targetMode === 'existing' ? selectedProjectId : undefined
+    );
+
+    // Show luxury toast and switch to editor view
+    setShowToast(true);
+    setStage('editor');
+  };
+
+  // FINISH & CLOSE ACTION: User finishes inspecting or editing
+  const handleFinishAndClose = () => {
+    soundManager.playTick();
+    // Re-sync any manual changes made while in editor
     onImport(
       {
         name: parsed.name,
@@ -164,6 +295,9 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
     onClose();
   };
 
+  // Line numbers calculation for styled editor
+  const lineCount = Math.max(1, markdownText.split('\n').length);
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
@@ -176,92 +310,51 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
           className="fixed inset-0 bg-black/85 backdrop-blur-md"
         />
 
-        {/* Modal */}
+        {/* Modal Container */}
         <motion.div
           initial={{ opacity: 0, scale: 0.96, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 8 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-3xl glass-panel border border-[#D8C9A3]/25 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] z-10"
+          className={`relative w-full transition-all duration-300 glass-panel border border-white/[0.08] rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 ${
+            stage === 'upload' ? 'max-w-xl max-h-[85vh] bg-[#141517]' : 'max-w-4xl max-h-[90vh] bg-[#101113]'
+          }`}
         >
-          {/* Header */}
-          <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <Plus className="w-4 h-4 text-[#ABC8A2]" />
-              <h2 className="text-base font-serif font-medium text-[#F7F4EE] tracking-wide">
-                {defaultProjectId ? 'Sync Project Markdown' : 'New Project'}
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowSyntaxGuide(!showSyntaxGuide)}
-                className="text-xs font-sans text-stone-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
-              >
-                <HelpCircle className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Syntax Guide</span>
-              </button>
-
-              <button
-                onClick={onClose}
-                className="p-1 rounded text-stone-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Syntax Guide Banner */}
-          <AnimatePresence>
-            {showSyntaxGuide && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden border-b border-white/[0.06] bg-[#120F0C] p-3.5 text-xs font-mono text-stone-400 space-y-1.5"
-              >
-                <div className="text-[11px] text-stone-300">
-                  <span className="text-[#ABC8A2] font-semibold">Frontmatter Syntax:</span>{' '}
-                  <code className="bg-white/[0.06] px-1.5 py-0.5 rounded text-stone-200">
-                    --- name: ... description: ... EST:HH:MM:SS ---
-                  </code>
-                </div>
-                <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px]">
-                  <span><strong className="text-[#ABC8A2]">name:</strong> Project title</span>
-                  <span><strong className="text-[#ABC8A2]">description:</strong> Scope</span>
-                  <span><strong className="text-[#ABC8A2]">EST:HH:MM:SS</strong> Target duration</span>
-                  <span><strong className="text-stone-300">#</strong> Phase</span>
-                  <span><strong className="text-stone-300">##</strong> Subphase</span>
-                  <span><strong className="text-stone-300">[ 4h ] - #</strong> Phase budget</span>
-                  <span><strong className="text-stone-300">[ X ]</strong> Done</span>
-                  <span><strong className="text-stone-300">[ ! ]</strong> Urgent</span>
-                  <span><strong className="text-stone-300">[ ~ ]</strong> Active</span>
-                  <span><strong className="text-stone-300">[   ]</strong> Todo</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5">
-            {/* Template Selector & Upload */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex gap-1.5 overflow-x-auto">
-                {SAMPLE_TEMPLATES.map((tpl, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      soundManager.playTick();
-                      setMarkdownText(tpl.content);
-                    }}
-                    className="px-2.5 py-1 rounded-md bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-[11px] text-stone-300 font-sans cursor-pointer transition-colors whitespace-nowrap"
-                  >
-                    {tpl.name}
-                  </button>
-                ))}
+          {/* ========================================================= */}
+          {/* STAGE 1: MODERN UPLOAD FILES UI (Pixel-exact to Mockup)   */}
+          {/* ========================================================= */}
+          {stage === 'upload' && (
+            <div className="flex flex-col p-6 sm:p-7 space-y-5 animate-in fade-in duration-150">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-1">
+                <h2 className="text-lg sm:text-xl font-sans font-medium text-[#F7F4EE] tracking-tight">
+                  Upload Files
+                </h2>
+                
+                <button
+                  onClick={onClose}
+                  className="p-1.5 rounded-full text-stone-400 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              <div className="shrink-0">
+              {/* Dashed Drop Zone */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`relative rounded-2xl border-2 border-dashed p-8 sm:p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 select-none ${
+                  isDragging
+                    ? 'border-[#34D399] bg-[#34D399]/[0.06] scale-[0.99]'
+                    : 'border-white/[0.12] hover:border-white/[0.24] bg-white/[0.015] hover:bg-white/[0.03]'
+                }`}
+              >
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -269,107 +362,431 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
                   onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
                   className="hidden"
                 />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-2.5 py-1 rounded-md text-xs font-sans text-stone-400 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+
+                {/* Stacked Files Icon with '+' badge (as seen in mockup) */}
+                <div className="relative mb-5">
+                  <div className="w-12 h-12 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-stone-300 shadow-inner">
+                    <Files className="w-6 h-6 stroke-[1.7]" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#34D399] text-[#0A0D08] flex items-center justify-center shadow-[0_0_8px_rgba(52,211,153,0.6)]">
+                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                  </div>
+                </div>
+
+                {/* Monospace Headline with highlight */}
+                <div className="font-mono text-xs tracking-wider text-stone-300 space-x-1 mb-1.5">
+                  <span>DRAG AND DROP OR</span>
+                  <span className="text-[#34D399] font-semibold hover:underline">
+                    CLICK TO BROWSE
+                  </span>
+                </div>
+
+                {/* Secondary subtext */}
+                <p className="font-mono text-[10px] tracking-wider text-stone-500 uppercase">
+                  MAX FILE SIZE: 8MB · SUPPORTS .MD, .TXT
+                </p>
+              </div>
+
+              {/* Uploaded File Progress Card (Matches Mockup) */}
+              <div className="rounded-2xl p-4 bg-white/[0.025] border border-white/[0.06] flex items-center gap-4">
+                {/* File Icon with Extension Pill */}
+                <div className="relative shrink-0 w-11 h-12 rounded-xl bg-white/[0.04] border border-white/[0.08] flex flex-col items-center justify-center">
+                  <FileText className="w-5 h-5 text-stone-300 stroke-[1.6]" />
+                  <span className="text-[8px] font-mono font-bold tracking-wider text-stone-400 uppercase mt-0.5">
+                    MD
+                  </span>
+                </div>
+
+                {/* Info & Segmented Progress Bar */}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-stone-200 font-medium truncate pr-2">
+                      {activeFileName}
+                    </span>
+                    <span className="text-stone-400 font-mono text-[11px] shrink-0">
+                      {uploadProgress}%
+                    </span>
+                  </div>
+
+                  {/* Audio / Matrix LED Segmented Bar */}
+                  <SegmentedProgressBar progress={uploadProgress} />
+
+                  <div className="flex items-center justify-between text-[11px] font-mono text-stone-500">
+                    <span>.md / {activeFileSize}</span>
+                    <span className="text-[#34D399] text-[10px] font-sans">
+                      {uploadProgress === 100 ? 'Ready to import' : 'Uploading...'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Sample Templates Pill Selector */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between text-[11px] font-sans text-stone-400">
+                  <span>Or start from a sample template:</span>
+                  <button
+                    onClick={() => setStage('editor')}
+                    className="text-stone-400 hover:text-white underline text-[11px] font-sans cursor-pointer transition-colors"
+                  >
+                    Open manual editor →
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {SAMPLE_TEMPLATES.map((tpl, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSelectTemplate(tpl)}
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-sans transition-all cursor-pointer ${
+                        activeFileName === tpl.fileName
+                          ? 'bg-[#34D399]/10 border-[#34D399]/40 text-[#34D399]'
+                          : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.06] text-stone-300'
+                      }`}
+                    >
+                      {tpl.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Proceed Action Button */}
+              <div className="pt-2">
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  disabled={isSimulatingUpload}
+                  onClick={handleProceed}
+                  className="w-full py-3 px-5 rounded-2xl bg-[#34D399] hover:bg-[#22C55E] text-[#0A0D08] font-sans font-semibold text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(52,211,153,0.3)] transition-all cursor-pointer disabled:opacity-50"
                 >
-                  <Upload className="w-3.5 h-3.5 text-[#D8C9A3]" />
-                  <span>Upload .md</span>
-                </button>
+                  <span>Proceed to Import & Review</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                </motion.button>
               </div>
             </div>
+          )}
 
-            {/* Markdown Textarea */}
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              className={`rounded-xl border transition-all ${
-                isDragging
-                  ? 'border-[#D8C9A3] bg-[#D8C9A3]/5'
-                  : 'border-white/[0.08] bg-[#0E0C0A]'
-              }`}
-            >
-              <textarea
-                value={markdownText}
-                onChange={(e) => setMarkdownText(e.target.value)}
-                placeholder="---&#10;name: Project Name&#10;description: Project Scope and Objective&#10;EST: 04:30:00&#10;---&#10;&#10;[ 2h ] - # Phase 1: Conceptual Design&#10;- [ ! ] Urgent site audit [ 1h ]&#10;- [ ~ ] Drafting elevations [ 1h ]&#10;- [   ] Review travertine samples"
-                className="w-full h-64 sm:h-72 p-3.5 bg-transparent text-xs font-mono text-[#F7F4EE] placeholder-stone-600 outline-none resize-none leading-relaxed select-text"
-                spellCheck={false}
-              />
-            </div>
-
-            {/* Destination Mode */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-              <div className="flex items-center gap-2 text-xs font-sans">
-                <button
-                  type="button"
-                  onClick={() => setTargetMode('new')}
-                  className={`px-3 py-1 rounded-md cursor-pointer transition-colors ${
-                    targetMode === 'new'
-                      ? 'bg-white/[0.08] text-white font-medium'
-                      : 'text-stone-400 hover:text-white'
-                  }`}
-                >
-                  New Project
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTargetMode('existing')}
-                  disabled={existingProjects.length === 0}
-                  className={`px-3 py-1 rounded-md cursor-pointer transition-colors ${
-                    targetMode === 'existing'
-                      ? 'bg-white/[0.08] text-white font-medium'
-                      : 'text-stone-400 hover:text-white'
-                  }`}
-                >
-                  Merge Existing
-                </button>
-
-                {targetMode === 'existing' && existingProjects.length > 0 && (
-                  <select
-                    value={selectedProjectId}
-                    onChange={(e) => setSelectedProjectId(e.target.value)}
-                    className="bg-[#120F0C] border border-white/[0.08] rounded-md px-2 py-1 text-xs text-stone-200 outline-none font-sans"
+          {/* ========================================================= */}
+          {/* STAGE 2: STYLED MARKDOWN EDITOR WITH PROMINENT CLOSE      */}
+          {/* ========================================================= */}
+          {stage === 'editor' && (
+            <div className="flex flex-col h-full max-h-[90vh] animate-in fade-in duration-200">
+              {/* Floating Success Toast (When user just proceeded) */}
+              <AnimatePresence>
+                {showToast && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -16 }}
+                    className="p-3 bg-[#34D399]/15 border-b border-[#34D399]/30 flex items-center justify-between gap-3 text-xs font-sans text-[#34D399] px-6"
                   >
-                    {existingProjects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                    <div className="flex items-center gap-2 font-medium">
+                      <CheckCircle2 className="w-4 h-4 text-[#34D399] shrink-0" />
+                      <span>Project successfully imported to workspace!</span>
+                      <span className="text-stone-300 hidden sm:inline">
+                        You can review phases below, or close when ready.
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={handleFinishAndClose}
+                      className="px-3 py-1 rounded-lg bg-[#34D399] hover:bg-[#22C55E] text-[#0A0D08] font-semibold text-xs transition-colors cursor-pointer shrink-0 shadow-sm"
+                    >
+                      Close & Go To Projects
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Editor Header: Prominently Spot the Close Action */}
+              <div className="px-5 sm:px-6 py-3.5 border-b border-white/[0.08] flex items-center justify-between gap-3 bg-[#141517]">
+                <div className="flex items-center gap-3 min-w-0">
+                  <button
+                    onClick={() => {
+                      soundManager.playTick();
+                      setStage('upload');
+                    }}
+                    className="flex items-center gap-1 text-xs font-sans text-stone-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                    title="Upload another file"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Upload</span>
+                  </button>
+
+                  <span className="w-px h-3.5 bg-white/[0.1] shrink-0" />
+
+                  <div className="truncate">
+                    <h2 className="text-sm sm:text-base font-serif font-medium text-[#F7F4EE] truncate">
+                      {parsed.name || 'Untitled Project'}
+                    </h2>
+                  </div>
+
+                  {parsed.estimatedTime && (
+                    <span className="hidden md:inline px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-[#34D399] font-mono text-[11px] shrink-0">
+                      EST: {parsed.estimatedTime}
+                    </span>
+                  )}
+                </div>
+
+                {/* HIGH VISIBILITY CLOSE BUTTON AREA (As user requested to "spot the close more") */}
+                <div className="flex items-center gap-2.5 shrink-0">
+                  {/* Glowing High-Contrast Done / Close Button */}
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
+                    onClick={handleFinishAndClose}
+                    className="px-4 py-1.5 rounded-xl bg-[#34D399] hover:bg-[#22C55E] text-[#0A0D08] font-sans font-semibold text-xs flex items-center gap-1.5 shadow-[0_0_16px_rgba(52,211,153,0.35)] cursor-pointer transition-all"
+                    title="Finish and close modal"
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[2.8]" />
+                    <span>Done & Close</span>
+                  </motion.button>
+
+                  {/* Accented Close 'X' Button */}
+                  <button
+                    onClick={handleFinishAndClose}
+                    className="p-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-stone-300 hover:text-white transition-colors cursor-pointer border border-white/[0.08]"
+                    title="Close Editor"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Editor Tabs & Toolbar */}
+              <div className="px-5 sm:px-6 py-2 border-b border-white/[0.06] flex items-center justify-between gap-3 bg-[#111214] text-xs font-sans">
+                {/* Segmented Tab Controls */}
+                <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/[0.05]">
+                  <button
+                    onClick={() => setEditorTab('editor')}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs transition-colors cursor-pointer ${
+                      editorTab === 'editor'
+                        ? 'bg-white/[0.08] text-white font-medium'
+                        : 'text-stone-400 hover:text-white'
+                    }`}
+                  >
+                    <Code2 className="w-3.5 h-3.5" />
+                    <span>Markdown Code</span>
+                  </button>
+
+                  <button
+                    onClick={() => setEditorTab('preview')}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs transition-colors cursor-pointer ${
+                      editorTab === 'preview'
+                        ? 'bg-white/[0.08] text-white font-medium'
+                        : 'text-stone-400 hover:text-white'
+                    }`}
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Tree Preview ({stats.totalPhasesCount})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setEditorTab('syntax')}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs transition-colors cursor-pointer ${
+                      editorTab === 'syntax'
+                        ? 'bg-white/[0.08] text-white font-medium'
+                        : 'text-stone-400 hover:text-white'
+                    }`}
+                  >
+                    <HelpCircle className="w-3.5 h-3.5" />
+                    <span>Frontmatter Guide</span>
+                  </button>
+                </div>
+
+                {/* Target Mode: New vs Existing */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-stone-500 hidden sm:inline">Destination:</span>
+                  <button
+                    onClick={() => setTargetMode('new')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors ${
+                      targetMode === 'new'
+                        ? 'bg-white/[0.08] text-white font-medium'
+                        : 'text-stone-400 hover:text-white'
+                    }`}
+                  >
+                    New Workspace
+                  </button>
+                  {existingProjects.length > 0 && (
+                    <button
+                      onClick={() => setTargetMode('existing')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors ${
+                        targetMode === 'existing'
+                          ? 'bg-white/[0.08] text-white font-medium'
+                          : 'text-stone-400 hover:text-white'
+                      }`}
+                    >
+                      Merge
+                    </button>
+                  )}
+                  {targetMode === 'existing' && existingProjects.length > 0 && (
+                    <select
+                      value={selectedProjectId}
+                      onChange={(e) => setSelectedProjectId(e.target.value)}
+                      className="bg-[#18191B] border border-white/[0.08] rounded-lg px-2 py-0.5 text-[11px] text-stone-200 outline-none"
+                    >
+                      {existingProjects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* Editor Workspace Content */}
+              <div className="flex-1 overflow-y-auto">
+                {editorTab === 'editor' && (
+                  <div className="flex min-h-[360px] h-full bg-[#0D0E10]">
+                    {/* Line numbers gutter */}
+                    <div className="w-10 sm:w-12 py-4 select-none font-mono text-[11px] text-stone-600 text-right pr-3 border-r border-white/[0.04] bg-[#0A0B0D]">
+                      {Array.from({ length: lineCount }).map((_, i) => (
+                        <div key={i} className="leading-6">
+                          {i + 1}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Textarea */}
+                    <div className="flex-1 p-4">
+                      <textarea
+                        value={markdownText}
+                        onChange={(e) => setMarkdownText(e.target.value)}
+                        placeholder="---&#10;name: Project Title&#10;description: Scope description&#10;EST: 14:30:00&#10;---&#10;&#10;[ 4h ] - # Phase 1: Conceptual Design&#10;- [ ! ] Urgent site audit [ 2h ]&#10;- [ ~ ] Drafting elevations [ 2h ]"
+                        className="w-full h-full min-h-[340px] bg-transparent text-xs font-mono text-[#F7F4EE] placeholder-stone-600 outline-none resize-none leading-6 select-text"
+                        spellCheck={false}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {editorTab === 'preview' && (
+                  <div className="p-5 sm:p-6 space-y-4">
+                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-sans uppercase tracking-wider text-[#34D399]">
+                          {parsed.category || 'Architecture'}
+                        </span>
+                        {parsed.estimatedTime && (
+                          <span className="text-xs font-mono text-stone-400">
+                            EST: {parsed.estimatedTime}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-lg font-serif text-white font-medium">
+                        {parsed.name}
+                      </h3>
+                      {parsed.description && (
+                        <p className="text-xs text-stone-400 font-sans leading-relaxed">
+                          {parsed.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Phases preview */}
+                    <div className="space-y-2.5">
+                      <h4 className="text-xs font-mono text-stone-400 uppercase tracking-wider">
+                        Phases & Milestones ({stats.totalPhasesCount} phases · {stats.totalTodosCount} tasks)
+                      </h4>
+
+                      {parsed.phases.map((ph, idx) => (
+                        <div
+                          key={idx}
+                          className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.04] space-y-2"
+                        >
+                          <div className="flex items-center justify-between text-xs font-sans">
+                            <span className="font-medium text-stone-200">
+                              {ph.title}
+                            </span>
+                            {ph.timeBudget && (
+                              <span className="font-mono text-stone-400">
+                                [{ph.timeBudget}]
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="pl-3 space-y-1">
+                            {ph.todos.map((t: any, tidx: number) => (
+                              <div
+                                key={tidx}
+                                className="flex items-center justify-between text-xs font-sans text-stone-400 py-0.5"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] ${
+                                    t.status === 'completed'
+                                      ? 'bg-[#34D399]/20 text-[#34D399]'
+                                      : t.status === 'urgent'
+                                      ? 'bg-rose-500/20 text-rose-400 font-bold'
+                                      : 'border border-stone-600'
+                                  }`}>
+                                    {t.status === 'completed' ? '✓' : t.status === 'urgent' ? '!' : ''}
+                                  </span>
+                                  <span>{t.title}</span>
+                                </div>
+                                {t.estimatedTime && (
+                                  <span className="font-mono text-[10px] text-stone-500">
+                                    {t.estimatedTime}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {editorTab === 'syntax' && (
+                  <div className="p-5 sm:p-6 space-y-4">
+                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-3 font-mono text-xs text-stone-300">
+                      <div className="text-sm font-semibold text-[#34D399]">
+                        Frontmatter Syntax Guide:
+                      </div>
+                      <pre className="p-3 bg-black/40 rounded-xl text-stone-300 overflow-x-auto text-[11px] leading-relaxed">
+{`---
+name: Project Name
+description: Scope, direction, and objective
+category: Architecture & Design
+EST: 04:30:00
+---
+
+[ 14h ] - # Phase One: Title
+- [ X ] Completed milestone [ 2h ]
+- [ ! ] Urgent milestone [ 3h ]
+- [ ~ ] Active milestone in progress [ 1h ]
+- [   ] Standard todo item
+
+[ 8h ] - ## Subphase 1.1: Deep child
+- [   ] Detail task`}
+                      </pre>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              <div className="text-[11px] font-mono text-stone-500">
-                {stats.totalPhasesCount} phases · {stats.totalTodosCount} milestones
+              {/* Editor Footer with Prominent Close */}
+              <div className="px-5 sm:px-6 py-3 border-t border-white/[0.08] flex items-center justify-between gap-3 bg-[#141517]">
+                <div className="flex items-center gap-3 text-xs font-mono text-stone-400">
+                  <span className="text-[#34D399] font-medium">
+                    ✓ Synced to Project
+                  </span>
+                  <span>·</span>
+                  <span>{stats.totalPhasesCount} phases</span>
+                  <span>·</span>
+                  <span>{stats.totalTodosCount} tasks</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
+                    onClick={handleFinishAndClose}
+                    className="px-5 py-2 rounded-xl bg-[#34D399] hover:bg-[#22C55E] text-[#0A0D08] font-sans font-semibold text-xs flex items-center gap-1.5 shadow-[0_0_16px_rgba(52,211,153,0.3)] cursor-pointer"
+                  >
+                    <Check className="w-4 h-4 stroke-[2.8]" />
+                    <span>Done & Close</span>
+                  </motion.button>
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Footer */}
-          <div className="px-5 py-3 border-t border-white/[0.06] flex items-center justify-between bg-[#120F0C]">
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-xs font-sans text-stone-400 hover:text-white transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={handleConfirmImport}
-              className="px-4 py-1.5 rounded-lg glass-button-primary text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(171,200,162,0.2)]"
-            >
-              <span>{targetMode === 'existing' ? 'Update Project' : 'Create Project'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </motion.button>
-          </div>
+          )}
         </motion.div>
       </div>
     </AnimatePresence>
