@@ -35,6 +35,20 @@ interface LockInViewProps {
   onSessionComplete: (session: { taskId?: string; taskTitle?: string; durationMinutes: number }) => void;
   currentWallpaperId: string;
   onSaveWallpaper: (id: string) => void;
+  // Lifted Timer State & Handlers
+  selectedMinutes: number;
+  secondsLeft: number;
+  isRunning: boolean;
+  isPaused: boolean;
+  currentTag: string;
+  onStartTimer: () => void;
+  onPauseTimer: () => void;
+  onResumeTimer: () => void;
+  onResetTimer: () => void;
+  onToggleTimer: () => void;
+  onChangeDuration: (mins: number) => void;
+  onAdjustSecondsLeft: (deltaSecs: number) => void;
+  onSetCurrentTag: (tag: string) => void;
 }
 
 const ALL_PRESETS = [
@@ -73,16 +87,22 @@ export const LockInView: React.FC<LockInViewProps> = ({
   onSessionComplete,
   currentWallpaperId,
   onSaveWallpaper,
+  selectedMinutes,
+  secondsLeft,
+  isRunning,
+  isPaused,
+  currentTag,
+  onStartTimer,
+  onPauseTimer,
+  onResumeTimer,
+  onResetTimer,
+  onToggleTimer,
+  onChangeDuration,
+  onAdjustSecondsLeft,
+  onSetCurrentTag,
 }) => {
-  // Timer State
-  const [selectedMinutes, setSelectedMinutes] = useState<number>(45);
-  const [secondsLeft, setSecondsLeft] = useState<number>(45 * 60);
-  const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [isPaused, setIsPaused] = useState<boolean>(false);
-  
   // Customization & UI Popovers
   const [clockScale, setClockScale] = useState<number>(100); // 100%, 110%, 125%, 150%
-  const [currentTag, setCurrentTag] = useState<string>('code');
   const [isEditingTag, setIsEditingTag] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   
@@ -132,40 +152,21 @@ export const LockInView: React.FC<LockInViewProps> = ({
   // Sync selected task title to currentTag if selected
   useEffect(() => {
     if (selectedTask?.title) {
-      setCurrentTag(selectedTask.title);
+      onSetCurrentTag(selectedTask.title);
     }
   }, [selectedTask]);
-
-  // Main countdown timer
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isRunning && !isPaused && secondsLeft > 0) {
-      interval = setInterval(() => {
-        setSecondsLeft((prev) => {
-          if (prev <= 1) {
-            handleCompleteSession();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isRunning, isPaused, secondsLeft]);
 
   // Spacebar shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && (e.target as HTMLElement).tagName !== 'INPUT') {
         e.preventDefault();
-        toggleTimer();
+        onToggleTimer();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isRunning, isPaused]);
+  }, [isRunning, isPaused, onToggleTimer]);
 
   // Apple-style calibrated scroll handlers
   useEffect(() => {
@@ -185,11 +186,7 @@ export const LockInView: React.FC<LockInViewProps> = ({
         const velocityFactor = absDelta > 120 ? Math.floor(absDelta / 60) : 1;
         const deltaSecs = sign * velocityFactor * 3600;
 
-        setSecondsLeft((prev) => {
-          const next = Math.max(60, Math.min(prev + deltaSecs, 43200));
-          setSelectedMinutes(Math.max(1, Math.floor(next / 60)));
-          return next;
-        });
+        onAdjustSecondsLeft(deltaSecs);
         soundManager.playTick();
         hoursAccumRef.current = 0;
       }
@@ -207,11 +204,7 @@ export const LockInView: React.FC<LockInViewProps> = ({
         const velocityFactor = absDelta > 120 ? Math.floor(absDelta / 40) : 1;
         const deltaSecs = sign * velocityFactor * 60;
 
-        setSecondsLeft((prev) => {
-          const next = Math.max(60, Math.min(prev + deltaSecs, 43200));
-          setSelectedMinutes(Math.max(1, Math.floor(next / 60)));
-          return next;
-        });
+        onAdjustSecondsLeft(deltaSecs);
         soundManager.playTick();
         minsAccumRef.current = 0;
       }
@@ -229,11 +222,7 @@ export const LockInView: React.FC<LockInViewProps> = ({
         const velocityFactor = absDelta > 120 ? Math.floor(absDelta / 30) : 1;
         const deltaSecs = sign * velocityFactor * 15;
 
-        setSecondsLeft((prev) => {
-          const next = Math.max(15, Math.min(prev + deltaSecs, 43200));
-          setSelectedMinutes(Math.max(1, Math.floor(next / 60)));
-          return next;
-        });
+        onAdjustSecondsLeft(deltaSecs);
         soundManager.playTick();
         secsAccumRef.current = 0;
       }
@@ -248,57 +237,30 @@ export const LockInView: React.FC<LockInViewProps> = ({
       minsElem?.removeEventListener('wheel', handleMinsWheel);
       secsElem?.removeEventListener('wheel', handleSecsWheel);
     };
-  }, [isRunning]);
-
-  const handleCompleteSession = () => {
-    setIsRunning(false);
-    setIsPaused(false);
-    soundManager.playCompletionChime();
-    setCompletedSessionToast(true);
-
-    onSessionComplete({
-      taskId: selectedTask?.id,
-      taskTitle: currentTag || 'Deep Work Session',
-      durationMinutes: selectedMinutes,
-    });
-  };
+  }, [isRunning, onAdjustSecondsLeft]);
 
   const startTimer = () => {
-    soundManager.playTick();
-    setIsRunning(true);
-    setIsPaused(false);
+    onStartTimer();
   };
 
   const pauseTimer = () => {
-    soundManager.playTick();
-    setIsPaused(true);
+    onPauseTimer();
   };
 
   const resumeTimer = () => {
-    soundManager.playTick();
-    setIsPaused(false);
+    onResumeTimer();
   };
 
   const resetTimer = () => {
-    soundManager.playTick();
-    setIsRunning(false);
-    setIsPaused(false);
-    setSecondsLeft(selectedMinutes * 60);
+    onResetTimer();
   };
 
   const toggleTimer = () => {
-    if (!isRunning) startTimer();
-    else if (isPaused) resumeTimer();
-    else pauseTimer();
+    onToggleTimer();
   };
 
   const changeDuration = (mins: number) => {
-    soundManager.playTick();
-    const clampedMins = Math.max(1, Math.min(mins, 720));
-    setSelectedMinutes(clampedMins);
-    setSecondsLeft(clampedMins * 60);
-    setIsRunning(false);
-    setIsPaused(false);
+    onChangeDuration(mins);
   };
 
   const handleAmbientChange = (id: string) => {

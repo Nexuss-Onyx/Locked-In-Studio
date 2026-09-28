@@ -28,6 +28,14 @@ export default function App() {
   const [newProjectTargetProjectId, setNewProjectTargetProjectId] = useState<string | undefined>(undefined);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState<boolean>(false);
 
+  // Global Timer State for Background Persistence & Real-time Live Metrics
+  const [selectedMinutes, setSelectedMinutes] = useState<number>(45);
+  const [secondsLeft, setSecondsLeft] = useState<number>(45 * 60);
+  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  const [isTimerPaused, setIsTimerPaused] = useState<boolean>(false);
+  const [timerTag, setTimerTag] = useState<string>('Focus Sprint');
+  const [liveElapsedSeconds, setLiveElapsedSeconds] = useState<number>(0);
+
   useEffect(() => {
     setProjects(StorageService.getProjects());
     setTasks(StorageService.getTasks());
@@ -45,6 +53,93 @@ export default function App() {
   }, []);
 
   const contributionData = StorageService.getContributionActivity();
+
+  // Session Completion Handler
+  const handleCompleteSession = useCallback(() => {
+    setIsTimerRunning(false);
+    setIsTimerPaused(false);
+    soundManager.playCompletionChime();
+    
+    StorageService.recordFocusSession({
+      taskId: selectedLockInTask?.id,
+      taskTitle: timerTag || selectedLockInTask?.title || 'Deep Work Session',
+      durationMinutes: selectedMinutes,
+    });
+    setSessions(StorageService.getFocusSessions());
+    setTasks(StorageService.getTasks());
+    setProjects(StorageService.getProjects());
+    setLiveElapsedSeconds(0);
+    setSecondsLeft(selectedMinutes * 60);
+  }, [selectedMinutes, selectedLockInTask, timerTag]);
+
+  // Global background ticker
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isTimerRunning && !isTimerPaused && secondsLeft > 0) {
+      interval = setInterval(() => {
+        setSecondsLeft((prev) => {
+          if (prev <= 1) {
+            handleCompleteSession();
+            return 0;
+          }
+          return prev - 1;
+        });
+        setLiveElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isTimerRunning, isTimerPaused, secondsLeft, handleCompleteSession]);
+
+  // Timer Control Handlers
+  const handleStartTimer = useCallback(() => {
+    soundManager.playTick();
+    setIsTimerRunning(true);
+    setIsTimerPaused(false);
+  }, []);
+
+  const handlePauseTimer = useCallback(() => {
+    soundManager.playTick();
+    setIsTimerPaused(true);
+  }, []);
+
+  const handleResumeTimer = useCallback(() => {
+    soundManager.playTick();
+    setIsTimerPaused(false);
+  }, []);
+
+  const handleResetTimer = useCallback(() => {
+    soundManager.playTick();
+    setIsTimerRunning(false);
+    setIsTimerPaused(false);
+    setLiveElapsedSeconds(0);
+    setSecondsLeft(selectedMinutes * 60);
+  }, [selectedMinutes]);
+
+  const handleToggleTimer = useCallback(() => {
+    if (!isTimerRunning) handleStartTimer();
+    else if (isTimerPaused) handleResumeTimer();
+    else handlePauseTimer();
+  }, [isTimerRunning, isTimerPaused, handleStartTimer, handleResumeTimer, handlePauseTimer]);
+
+  const handleChangeDuration = useCallback((mins: number) => {
+    soundManager.playTick();
+    const clampedMins = Math.max(1, Math.min(mins, 720));
+    setSelectedMinutes(clampedMins);
+    setSecondsLeft(clampedMins * 60);
+    setIsTimerRunning(false);
+    setIsTimerPaused(false);
+    setLiveElapsedSeconds(0);
+  }, []);
+
+  const handleAdjustSecondsLeft = useCallback((deltaSecs: number) => {
+    setSecondsLeft((prev) => {
+      const next = Math.max(15, Math.min(prev + deltaSecs, 43200));
+      setSelectedMinutes(Math.max(1, Math.floor(next / 60)));
+      return next;
+    });
+  }, []);
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -156,6 +251,12 @@ export default function App() {
 
   const handleStartLockInWithTask = (task: Task) => {
     setSelectedLockInTask(task);
+    setTimerTag(task.title);
+    if (task.estimatedMinutes) {
+      setSelectedMinutes(task.estimatedMinutes);
+      setSecondsLeft(task.estimatedMinutes * 60);
+    }
+    handleStartTimer();
     setCurrentView('lockin');
   };
 
@@ -166,6 +267,11 @@ export default function App() {
     );
     if (existingTask) {
       setSelectedLockInTask(existingTask);
+      setTimerTag(existingTask.title);
+      if (existingTask.estimatedMinutes) {
+        setSelectedMinutes(existingTask.estimatedMinutes);
+        setSecondsLeft(existingTask.estimatedMinutes * 60);
+      }
     } else {
       const realTask = StorageService.createTask({
         title: todoTitle,
@@ -176,7 +282,9 @@ export default function App() {
       });
       setTasks(StorageService.getTasks());
       setSelectedLockInTask(realTask);
+      setTimerTag(realTask.title);
     }
+    handleStartTimer();
     setCurrentView('lockin');
   };
 
@@ -229,6 +337,7 @@ export default function App() {
       }`}>
         <Header
           title={getHeaderTitle()}
+          currentView={currentView}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onOpenNewProject={() => {
@@ -241,6 +350,11 @@ export default function App() {
           }}
           onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+          isTimerRunning={isTimerRunning}
+          isTimerPaused={isTimerPaused}
+          secondsLeft={secondsLeft}
+          selectedMinutes={selectedMinutes}
+          timerTag={timerTag}
         />
 
         <main className={currentView === 'lockin' ? 'flex-1 overflow-hidden flex flex-col' : 'flex-1 pb-16'}>
@@ -261,6 +375,11 @@ export default function App() {
                 setNewProjectTargetProjectId(undefined);
                 setIsNewProjectModalOpen(true);
               }}
+              liveElapsedSeconds={liveElapsedSeconds}
+              isTimerRunning={isTimerRunning}
+              isTimerPaused={isTimerPaused}
+              timerSecondsLeft={secondsLeft}
+              activeTimerTask={selectedLockInTask}
             />
           )}
 
@@ -289,6 +408,19 @@ export default function App() {
               onToggleTaskComplete={handleToggleTaskComplete}
               currentWallpaperId={currentWallpaperId}
               onSaveWallpaper={handleSaveWallpaper}
+              selectedMinutes={selectedMinutes}
+              secondsLeft={secondsLeft}
+              isRunning={isTimerRunning}
+              isPaused={isTimerPaused}
+              currentTag={timerTag}
+              onStartTimer={handleStartTimer}
+              onPauseTimer={handlePauseTimer}
+              onResumeTimer={handleResumeTimer}
+              onResetTimer={handleResetTimer}
+              onToggleTimer={handleToggleTimer}
+              onChangeDuration={handleChangeDuration}
+              onAdjustSecondsLeft={handleAdjustSecondsLeft}
+              onSetCurrentTag={setTimerTag}
             />
           )}
 

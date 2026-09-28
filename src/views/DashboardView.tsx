@@ -22,6 +22,11 @@ interface DashboardViewProps {
   onToggleTaskComplete: (taskId: string) => void;
   onStartLockInWithTask: (task: Task) => void;
   onOpenNewProject: () => void;
+  liveElapsedSeconds?: number;
+  isTimerRunning?: boolean;
+  isTimerPaused?: boolean;
+  timerSecondsLeft?: number;
+  activeTimerTask?: Task | null;
 }
 
 interface WeekCadence {
@@ -45,6 +50,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onToggleTaskComplete,
   onStartLockInWithTask,
   onOpenNewProject,
+  liveElapsedSeconds = 0,
+  isTimerRunning = false,
+  isTimerPaused = false,
+  timerSecondsLeft = 0,
+  activeTimerTask = null,
 }) => {
   const [hoveredWeek, setHoveredWeek] = useState<WeekCadence | null>(null);
   const [activeMetricView, setActiveMetricView] = useState<'focus' | 'tasks'>('focus');
@@ -55,10 +65,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todaySessions = sessions.filter((s) => s.completedAt.startsWith(todayStr));
-  const todayFocusMinutes = todaySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+  const loggedTodayFocusMinutes = todaySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+  
+  // Real-time live focus calculation (accumulating seconds while timer ticks)
+  const liveFocusMinutes = Math.floor(liveElapsedSeconds / 60);
+  const totalTodayFocusMinutes = loggedTodayFocusMinutes + liveFocusMinutes;
 
-  // Critical Priority Task
-  const criticalTask = pendingTasks.find(
+  // Active in-flight timer task or highest priority critical task
+  const activeFocusTask = isTimerRunning && activeTimerTask ? activeTimerTask : null;
+  const criticalTask = activeFocusTask || pendingTasks.find(
     (t) => t.priority === 'urgent' || t.priority === 'high'
   ) || pendingTasks[0];
 
@@ -84,8 +99,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   for (let i = 0; i < totalDays; i += 7) {
     const slice = activity.days.slice(i, i + 7);
     const weekTotalTasks = slice.reduce((sum, d) => sum + d.count, 0);
-    const weekFocusMins = slice.reduce((sum, d) => sum + d.focusMinutes, 0);
     const isCurrent = slice.some((d) => d.date === todayStr);
+    const weekFocusMins = slice.reduce((sum, d) => sum + d.focusMinutes, 0) + (isCurrent ? liveFocusMinutes : 0);
 
     // Compute proportional height score based on active metric view with true zero baseline
     let score = 0;
@@ -132,6 +147,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return markers;
   }, [weekCadences]);
 
+  const timerMins = Math.floor(timerSecondsLeft / 60);
+  const timerSecs = timerSecondsLeft % 60;
+  const timeFormatted = `${timerMins.toString().padStart(2, '0')}:${timerSecs.toString().padStart(2, '0')}`;
+
   return (
     <div className="p-3.5 sm:p-6 max-w-6xl mx-auto space-y-4 animate-in fade-in duration-200">
       
@@ -139,21 +158,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* 1. SLIM IMMEDIATE FOCUS BANNER (Aura Luxe Warm Obsidian) */}
       {/* ========================================================= */}
       {criticalTask ? (
-        <div className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#223020]/90 via-[#1A2417]/80 to-[#121B10] border border-[#ABC8A2]/30 shadow-lg flex items-center justify-between gap-3">
+        <div className={`px-4 py-2.5 rounded-2xl flex items-center justify-between gap-3 transition-all ${
+          isTimerRunning && !isTimerPaused
+            ? 'bg-gradient-to-r from-[#2B2313]/95 via-[#1E180E]/90 to-[#120F09] border border-[#E5C158]/40 shadow-[0_0_20px_rgba(229,193,88,0.2)]'
+            : 'bg-gradient-to-r from-[#223020]/90 via-[#1A2417]/80 to-[#121B10] border border-[#ABC8A2]/30 shadow-lg'
+        }`}>
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-[#ABC8A2]/15 border border-[#ABC8A2]/35 flex items-center justify-center shrink-0 text-[#ABC8A2]">
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+              isTimerRunning && !isTimerPaused
+                ? 'bg-[#E5C158]/20 border border-[#E5C158]/40 text-[#E5C158]'
+                : 'bg-[#ABC8A2]/15 border border-[#ABC8A2]/35 text-[#ABC8A2]'
+            }`}>
               <LuxeApertureIcon className="w-3.5 h-3.5" />
             </div>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[11px] font-sans text-[#ABC8A2] font-medium tracking-wide shrink-0 hidden xs:inline">
-                Immediate Focus:
+              <span className={`text-[11px] font-sans font-medium tracking-wide shrink-0 hidden xs:inline ${
+                isTimerRunning && !isTimerPaused ? 'text-[#E5C158]' : 'text-[#ABC8A2]'
+              }`}>
+                {isTimerRunning ? 'Active Focus Sprint:' : 'Immediate Focus:'}
               </span>
               <span className="text-xs sm:text-[13px] font-medium text-[#F4F8F3] truncate">
                 {criticalTask.title}
               </span>
-              <span className="text-[10px] font-mono text-stone-400 uppercase shrink-0 hidden md:inline">
-                · {criticalTask.priority}
-              </span>
+              {isTimerRunning && timerSecondsLeft > 0 ? (
+                <span className="font-mono text-[11px] text-[#E5C158] font-bold px-1.5 py-0.5 rounded bg-[#E5C158]/15 shrink-0">
+                  {timeFormatted}
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono text-stone-400 uppercase shrink-0 hidden md:inline">
+                  · {criticalTask.priority}
+                </span>
+              )}
             </div>
           </div>
 
@@ -172,12 +207,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               whileTap={{ scale: 0.95 }}
               onClick={() => {
                 soundManager.playTick();
-                onStartLockInWithTask(criticalTask);
+                if (isTimerRunning) {
+                  onNavigate('lockin');
+                } else {
+                  onStartLockInWithTask(criticalTask);
+                }
               }}
-              className="px-3.5 py-1 rounded-xl glass-button-primary text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_16px_rgba(171,200,162,0.3)]"
+              className={`px-3.5 py-1 rounded-xl text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                isTimerRunning && !isTimerPaused
+                  ? 'bg-gradient-to-r from-[#E5C158] to-[#C9A645] text-black shadow-[0_0_16px_rgba(229,193,88,0.4)] hover:brightness-110'
+                  : 'glass-button-primary shadow-[0_0_16px_rgba(171,200,162,0.3)]'
+              }`}
             >
               <Play className="w-2.5 h-2.5 fill-current" />
-              <span>Lock-In</span>
+              <span>{isTimerRunning ? 'Return ↵' : 'Lock-In'}</span>
             </motion.button>
           </div>
         </div>
@@ -268,16 +311,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <div className="my-1.5 flex items-baseline gap-1">
             <span className="text-3xl sm:text-4xl font-serif font-light italic text-[#F4F8F3] leading-none">
-              {todayFocusMinutes}
+              {totalTodayFocusMinutes}
             </span>
             <span className="text-xs font-sans text-stone-400 font-medium">
               mins
             </span>
           </div>
 
-          <div className="text-[11px] text-stone-400 font-sans truncate flex items-center gap-1 min-h-[16px]">
-            <span className="text-[#F4F8F3] font-medium">{todaySessions.length}</span>
-            <span className="truncate">sprints</span>
+          <div className="text-[11px] text-stone-400 font-sans truncate flex items-center justify-between min-h-[16px]">
+            <span>
+              <span className="text-[#F4F8F3] font-medium">{todaySessions.length}</span> sprints
+            </span>
+            {isTimerRunning && (
+              <span className="text-[#E5C158] font-mono text-[10px] flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#E5C158] animate-ping" />
+                Live +{liveFocusMinutes}m
+              </span>
+            )}
           </div>
         </motion.div>
 

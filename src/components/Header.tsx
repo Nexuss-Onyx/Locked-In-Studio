@@ -5,22 +5,34 @@ import { soundManager } from '../services/audio';
 
 interface HeaderProps {
   title: string;
+  currentView?: string;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onOpenNewProject: () => void;
   onGoToLockIn: () => void;
   onOpenShortcuts?: () => void;
   onOpenMobileMenu?: () => void;
+  isTimerRunning?: boolean;
+  isTimerPaused?: boolean;
+  secondsLeft?: number;
+  selectedMinutes?: number;
+  timerTag?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   title,
+  currentView = 'dashboard',
   searchQuery,
   onSearchChange,
   onOpenNewProject,
   onGoToLockIn,
   onOpenShortcuts,
   onOpenMobileMenu,
+  isTimerRunning = false,
+  isTimerPaused = false,
+  secondsLeft = 0,
+  selectedMinutes = 45,
+  timerTag = 'Focus Sprint',
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -33,6 +45,16 @@ export const Header: React.FC<HeaderProps> = ({
     window.addEventListener('app:focus-search', handleFocusSearch);
     return () => window.removeEventListener('app:focus-search', handleFocusSearch);
   }, []);
+
+  const isTimerActive = isTimerRunning || isTimerPaused || (secondsLeft > 0 && secondsLeft < selectedMinutes * 60);
+  const showActiveTimerButton = currentView !== 'lockin' && isTimerActive;
+
+  const timerHours = Math.floor(secondsLeft / 3600);
+  const timerMins = Math.floor((secondsLeft % 3600) / 60);
+  const timerSecs = secondsLeft % 60;
+  const timeFormatted = timerHours > 0
+    ? `${timerHours}:${timerMins.toString().padStart(2, '0')}:${timerSecs.toString().padStart(2, '0')}`
+    : `${timerMins.toString().padStart(2, '0')}:${timerSecs.toString().padStart(2, '0')}`;
 
   return (
     <header className="h-14 sm:h-16 px-4 sm:px-8 flex items-center justify-between gap-3 shrink-0 glass-panel border-b border-white/[0.06] sticky top-0 z-30">
@@ -85,32 +107,84 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Navigation Right Corner */}
       <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Lock-In Icon Button */}
-        <motion.button
-          whileTap={{ scale: 0.94 }}
-          onClick={() => {
-            soundManager.playTick();
-            onGoToLockIn();
-          }}
-          className="p-2 sm:p-2.5 rounded-xl glass-button text-stone-300 hover:text-white hover:border-[#D4AF37]/40 transition-colors cursor-pointer"
-          title="Lock-In Studio (3)"
-        >
-          <Timer className="w-4 h-4 text-[#E5C158]" />
-        </motion.button>
+        {/* Dynamic Action: Active Timer Pill (when away from Lock-In) OR "+ New Project" Button */}
+        {showActiveTimerButton ? (
+          <div className="flex items-center gap-1.5">
+            {/* Live Interactive Timer Button -> Returns to Lock-In */}
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={() => {
+                soundManager.playTick();
+                onGoToLockIn();
+              }}
+              className={`flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-xl border text-xs font-mono font-medium tracking-tight cursor-pointer transition-all shadow-md group ${
+                isTimerRunning && !isTimerPaused
+                  ? 'bg-gradient-to-r from-[#2B2313] to-[#1F190D] border-[#E5C158]/50 text-[#F7F4EE] shadow-[0_0_18px_rgba(229,193,88,0.25)] hover:border-[#E5C158]'
+                  : 'bg-white/[0.05] border-white/[0.12] text-stone-300 hover:bg-white/[0.08]'
+              }`}
+              title="Click to return to Lock-In Studio"
+            >
+              <div className="flex items-center gap-1.5">
+                {isTimerRunning && !isTimerPaused ? (
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E5C158] opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#E5C158]" />
+                  </span>
+                ) : (
+                  <Timer className="w-3.5 h-3.5 text-stone-400 group-hover:text-white" />
+                )}
+                <span className="font-mono text-xs sm:text-[13px] font-bold text-[#F7F4EE]">
+                  {timeFormatted}
+                </span>
+              </div>
+              <span className="text-[10px] font-sans font-medium text-[#E5C158] border-l border-white/[0.1] pl-2 hidden xs:inline">
+                {isTimerPaused ? 'Paused · Return' : 'Lock-In ↵'}
+              </span>
+            </motion.button>
 
-        {/* New Project Button */}
-        <motion.button
-          whileTap={{ scale: 0.94 }}
-          onClick={() => {
-            soundManager.playTick();
-            onOpenNewProject();
-          }}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl glass-button-primary text-xs font-semibold tracking-tight cursor-pointer shadow-[0_0_14px_rgba(171,200,162,0.25)]"
-          title="New Project (N)"
-        >
-          <Plus className="w-3.5 h-3.5 stroke-[2.4]" />
-          <span className="font-sans">New Project</span>
-        </motion.button>
+            {/* Compact New Project Quick Action Button */}
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={() => {
+                soundManager.playTick();
+                onOpenNewProject();
+              }}
+              className="p-2 rounded-xl glass-button text-stone-300 hover:text-white hover:border-[#ABC8A2]/50 transition-all cursor-pointer"
+              title="New Project (N)"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.4]" />
+            </motion.button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Lock-In Icon Quick Shortcut */}
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={() => {
+                soundManager.playTick();
+                onGoToLockIn();
+              }}
+              className="p-2 sm:p-2.5 rounded-xl glass-button text-stone-300 hover:text-white hover:border-[#D4AF37]/40 transition-colors cursor-pointer"
+              title="Lock-In Studio (3)"
+            >
+              <Timer className="w-4 h-4 text-[#E5C158]" />
+            </motion.button>
+
+            {/* Standard New Project Button */}
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={() => {
+                soundManager.playTick();
+                onOpenNewProject();
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl glass-button-primary text-xs font-semibold tracking-tight cursor-pointer shadow-[0_0_14px_rgba(171,200,162,0.25)]"
+              title="New Project (N)"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.4]" />
+              <span className="font-sans">New Project</span>
+            </motion.button>
+          </div>
+        )}
 
         {/* Shortcuts Icon Button */}
         {onOpenShortcuts && (
