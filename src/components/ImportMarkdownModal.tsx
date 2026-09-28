@@ -14,7 +14,7 @@ import { soundManager } from '../services/audio';
 interface ImportMarkdownModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (parsedData: { name: string; description: string; category: string; rawMarkdown: string; phases: any }, targetProjectId?: string) => void;
+  onImport: (parsedData: { name: string; description: string; category: string; rawMarkdown: string; phases: any; estimatedTime?: string; estimatedMinutes?: number }, targetProjectId?: string) => void;
   existingProjects?: Project[];
   defaultProjectId?: string;
 }
@@ -22,9 +22,12 @@ interface ImportMarkdownModalProps {
 const SAMPLE_TEMPLATES = [
   {
     name: 'Architecture',
-    content: `Project: Villa Bellagio Studio
-Category: Architecture
-Lake Como private residential estate masterplan and travertine stone specifications.
+    content: `---
+name: Villa Bellagio Studio
+category: Architecture
+description: Lake Como private residential estate masterplan and travertine stone specifications.
+EST: 68:00:00
+---
 
 [ 14h ] - # Phase One: Site Topography
 - [ X ] Aerial drone lidar scan [ 2h ]
@@ -47,9 +50,12 @@ Lake Como private residential estate masterplan and travertine stone specificati
   },
   {
     name: 'Couture',
-    content: `Project: Maison Haute Couture
-Category: Creative Direction
-Bespoke runway visual direction and textile curation for Paris Fashion Week.
+    content: `---
+name: Maison Haute Couture
+category: Creative Direction
+description: Bespoke runway visual direction and textile curation for Paris Fashion Week.
+EST: 64:00:00
+---
 
 [ 16h ] - # Phase One: Autumn Collection Narrative
 - [ X ] Archive research into 1920s Paul Poiret drapery [ 4h ]
@@ -69,9 +75,12 @@ Bespoke runway visual direction and textile curation for Paris Fashion Week.
   },
   {
     name: 'Horology',
-    content: `Project: Sovereign Heritage Capital
-Category: Private Equity
-Private equity syndicate for vintage horology and rare timepiece acquisitions.
+    content: `---
+name: Sovereign Heritage Capital
+category: Private Equity
+description: Private equity syndicate for vintage horology and rare timepiece acquisitions.
+EST: 36:00:00
+---
 
 [ 22h ] - # Phase One: Horology Portfolio M&A
 - [ X ] Complete buy-side due diligence for Geneva watchmaker [ 8h ]
@@ -111,6 +120,8 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
     category: parsed.category,
     createdAt: new Date().toISOString(),
     phases: parsed.phases,
+    estimatedTime: parsed.estimatedTime,
+    estimatedMinutes: parsed.estimatedMinutes,
   };
   const stats = calculateProjectStats(dummyProject);
 
@@ -144,6 +155,8 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
         category: parsed.category,
         rawMarkdown: markdownText,
         phases: parsed.phases,
+        estimatedTime: parsed.estimatedTime,
+        estimatedMinutes: parsed.estimatedMinutes,
       },
       targetMode === 'existing' ? selectedProjectId : undefined
     );
@@ -182,7 +195,7 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
                 className="text-xs font-sans text-stone-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
               >
                 <HelpCircle className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Syntax</span>
+                <span className="hidden sm:inline">Syntax Guide</span>
               </button>
 
               <button
@@ -201,17 +214,25 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden border-b border-white/[0.06] bg-[#120F0C] p-3.5 text-xs font-mono text-stone-400 space-y-1"
+                className="overflow-hidden border-b border-white/[0.06] bg-[#120F0C] p-3.5 text-xs font-mono text-stone-400 space-y-1.5"
               >
-                <div className="flex flex-wrap gap-x-6 gap-y-1">
-                  <span><strong className="text-[#D8C9A3]">#</strong> Phase</span>
-                  <span><strong className="text-[#D8C9A3]">##</strong> Subphase</span>
-                  <span><strong className="text-[#D8C9A3]">###</strong> Microphase</span>
-                  <span><strong className="text-white">[ 12h ] - #</strong> Time budget</span>
-                  <span><strong className="text-white">[ X ]</strong> Done</span>
-                  <span><strong className="text-white">[ ! ]</strong> Urgent</span>
-                  <span><strong className="text-white">[ ~ ]</strong> Active</span>
-                  <span><strong className="text-white">[   ]</strong> Todo</span>
+                <div className="text-[11px] text-stone-300">
+                  <span className="text-[#ABC8A2] font-semibold">Frontmatter Syntax:</span>{' '}
+                  <code className="bg-white/[0.06] px-1.5 py-0.5 rounded text-stone-200">
+                    --- name: ... description: ... EST:HH:MM:SS ---
+                  </code>
+                </div>
+                <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px]">
+                  <span><strong className="text-[#ABC8A2]">name:</strong> Project title</span>
+                  <span><strong className="text-[#ABC8A2]">description:</strong> Scope</span>
+                  <span><strong className="text-[#ABC8A2]">EST:HH:MM:SS</strong> Target duration</span>
+                  <span><strong className="text-stone-300">#</strong> Phase</span>
+                  <span><strong className="text-stone-300">##</strong> Subphase</span>
+                  <span><strong className="text-stone-300">[ 4h ] - #</strong> Phase budget</span>
+                  <span><strong className="text-stone-300">[ X ]</strong> Done</span>
+                  <span><strong className="text-stone-300">[ ! ]</strong> Urgent</span>
+                  <span><strong className="text-stone-300">[ ~ ]</strong> Active</span>
+                  <span><strong className="text-stone-300">[   ]</strong> Todo</span>
                 </div>
               </motion.div>
             )}
@@ -272,7 +293,7 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
               <textarea
                 value={markdownText}
                 onChange={(e) => setMarkdownText(e.target.value)}
-                placeholder="# Phase 1: Conceptual Design&#10;- [ ! ] Urgent site audit [ 2h ]&#10;- [ ~ ] Drafting elevations [ 4h ]&#10;- [   ] Review travertine samples&#10;&#10;## Subphase 1.1: Interior&#10;- [ X ] Brass sample approvals"
+                placeholder="---&#10;name: Project Name&#10;description: Project Scope and Objective&#10;EST: 04:30:00&#10;---&#10;&#10;[ 2h ] - # Phase 1: Conceptual Design&#10;- [ ! ] Urgent site audit [ 1h ]&#10;- [ ~ ] Drafting elevations [ 1h ]&#10;- [   ] Review travertine samples"
                 className="w-full h-64 sm:h-72 p-3.5 bg-transparent text-xs font-mono text-[#F7F4EE] placeholder-stone-600 outline-none resize-none leading-relaxed select-text"
                 spellCheck={false}
               />

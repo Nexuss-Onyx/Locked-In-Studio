@@ -105,7 +105,7 @@ export default function App() {
 
   // Import / Markdown Project Handler
   const handleImportMarkdown = (
-    parsedData: { name: string; description: string; category: string; rawMarkdown: string; phases: ProjectPhase[] },
+    parsedData: { name: string; description: string; category: string; rawMarkdown: string; phases: ProjectPhase[]; estimatedTime?: string; estimatedMinutes?: number },
     targetProjectId?: string
   ) => {
     if (targetProjectId) {
@@ -115,17 +115,21 @@ export default function App() {
         category: parsedData.category,
         rawMarkdown: parsedData.rawMarkdown,
         phases: parsedData.phases,
+        estimatedTime: parsedData.estimatedTime,
+        estimatedMinutes: parsedData.estimatedMinutes,
       });
       setSelectedProjectId(targetProjectId);
     } else {
       const newProj = StorageService.createProject({
         name: parsedData.name,
         description: parsedData.description,
-        color: '#D4AF37',
+        color: '#ABC8A2',
         icon: 'Layers',
         category: parsedData.category || 'Architecture & Design',
         rawMarkdown: parsedData.rawMarkdown,
         phases: parsedData.phases,
+        estimatedTime: parsedData.estimatedTime,
+        estimatedMinutes: parsedData.estimatedMinutes,
       });
       setSelectedProjectId(newProj.id);
     }

@@ -81,6 +81,8 @@ export const SupabaseService = {
         phases: item.phases || [],
         targetDeadline: item.target_deadline,
         rawMarkdown: item.raw_markdown,
+        estimatedTime: item.estimated_time,
+        estimatedMinutes: item.estimated_minutes,
       }));
     } catch (e) {
       console.warn('Supabase fetchProjects error:', e);
@@ -103,6 +105,8 @@ export const SupabaseService = {
         phases: p.phases,
         target_deadline: p.targetDeadline,
         raw_markdown: p.rawMarkdown,
+        estimated_time: p.estimatedTime || null,
+        estimated_minutes: p.estimatedMinutes || null,
         updated_at: new Date().toISOString(),
       }));
 

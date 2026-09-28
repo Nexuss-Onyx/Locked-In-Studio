@@ -401,15 +401,15 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
               {activeProject.name}
             </h2>
             <div className="flex items-baseline gap-2.5 shrink-0 text-xs font-mono text-stone-400">
-              <span className="font-serif italic text-lg sm:text-xl text-[#D8C9A3]">
+              <span className="font-serif italic text-lg sm:text-xl text-[#ABC8A2]">
                 {stats.completionRate}%
               </span>
               <span>
                 ({stats.completedTodosCount}/{stats.totalTodosCount})
               </span>
-              {stats.totalBudgetMinutes > 0 && (
-                <span className="text-stone-500">
-                  [{formatMinutesToLabel(stats.totalBudgetMinutes)}]
+              {(activeProject.estimatedTime || stats.totalBudgetMinutes > 0) && (
+                <span className="px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-[#ABC8A2] font-mono text-[11px]">
+                  EST: {activeProject.estimatedTime || formatMinutesToLabel(stats.totalBudgetMinutes)}
                 </span>
               )}
             </div>
@@ -518,7 +518,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-sans tracking-wider uppercase text-[#D8C9A3] truncate">
+                    <span className="text-[10px] font-sans tracking-wider uppercase text-[#ABC8A2] truncate">
                       {project.category || 'Architecture'}
                     </span>
                     <span className="text-sm font-serif italic text-stone-400">
@@ -526,7 +526,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                     </span>
                   </div>
 
-                  <h3 className="text-base sm:text-lg font-serif font-medium text-[#F7F4EE] leading-snug group-hover:text-[#D8C9A3] transition-colors">
+                  <h3 className="text-base sm:text-lg font-serif font-medium text-[#F7F4EE] leading-snug group-hover:text-[#ABC8A2] transition-colors">
                     {project.name}
                   </h3>
 
@@ -541,7 +541,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                   {/* Progress Hairline with Seamless Fill */}
                   <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-[#8C7355] to-[#D8C9A3] transition-all duration-300"
+                      className="h-full rounded-full bg-gradient-to-r from-[#73916D] to-[#ABC8A2] transition-all duration-300"
                       style={{ width: `${stats.completionRate}%` }}
                     />
                   </div>
@@ -551,9 +551,16 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                     <span>
                       {stats.totalPhasesCount} {stats.totalPhasesCount === 1 ? 'phase' : 'phases'}
                     </span>
-                    <span>
-                      {stats.completedTodosCount}/{stats.totalTodosCount}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {(project.estimatedTime || stats.totalBudgetMinutes > 0) && (
+                        <span className="text-[#ABC8A2]/80 font-medium">
+                          EST: {project.estimatedTime || formatMinutesToLabel(stats.totalBudgetMinutes)}
+                        </span>
+                      )}
+                      <span>
+                        {stats.completedTodosCount}/{stats.totalTodosCount}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </motion.div>

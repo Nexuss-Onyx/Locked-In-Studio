@@ -58,6 +58,8 @@ export interface Project {
   createdAt: string;
   rawMarkdown?: string;
   phases: ProjectPhase[];
+  estimatedTime?: string; // e.g. "04:30:00" or "14:30:00"
+  estimatedMinutes?: number;
 }
 
 export interface FocusSession {

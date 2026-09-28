@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { soundManager } from '../services/audio';
+import { parseTimeToMinutes } from '../services/markdownProjectParser';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -15,8 +16,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   onSave,
 }) => {
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('Core Systems');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('Architecture');
   const [targetDeadline, setTargetDeadline] = useState('');
+  const [estimatedTime, setEstimatedTime] = useState('');
 
   if (!isOpen) return null;
 
@@ -26,16 +29,21 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
     onSave({
       name: name.trim(),
-      description: '',
+      description: description.trim(),
       category: category.trim() || 'General',
-      color: '#06D6A0',
+      color: '#ABC8A2',
       icon: 'Folder',
       targetDeadline: targetDeadline ? new Date(targetDeadline).toISOString() : undefined,
+      estimatedTime: estimatedTime.trim() || undefined,
+      estimatedMinutes: estimatedTime.trim() ? parseTimeToMinutes(estimatedTime) : undefined,
+      phases: [],
     });
 
     setName('');
-    setCategory('Core Systems');
+    setDescription('');
+    setCategory('Architecture');
     setTargetDeadline('');
+    setEstimatedTime('');
     soundManager.playTick();
     onClose();
   };
@@ -53,7 +61,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         >
           <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] mb-4">
             <h2 className="text-xs font-semibold uppercase tracking-wider font-mono text-white/90">
-              New Workspace
+              New Project
             </h2>
             <button
               onClick={() => {
@@ -72,31 +80,55 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               <input
                 type="text"
                 required
-                placeholder="Workspace name..."
+                placeholder="Project title..."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full bg-white/[0.03] focus:bg-black/40 border border-white/[0.07] focus:border-[#06D6A0] rounded-xl px-3.5 py-2 text-xs text-white outline-none transition-all font-sans"
+                className="w-full bg-white/[0.03] focus:bg-black/40 border border-white/[0.07] focus:border-[#ABC8A2] rounded-xl px-3.5 py-2 text-xs text-white outline-none transition-all font-sans"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-mono text-zinc-400 mb-1">Domain</label>
-              <input
-                type="text"
-                placeholder="Systems, Frontend, Research..."
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-white/[0.03] focus:bg-black/40 border border-white/[0.07] focus:border-[#06D6A0] rounded-xl px-3.5 py-2 text-xs text-white outline-none transition-all font-sans"
+              <label className="block text-[11px] font-mono text-zinc-400 mb-1">Description</label>
+              <textarea
+                placeholder="Scope, creative manifesto, or architectural goals..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                className="w-full bg-white/[0.03] focus:bg-black/40 border border-white/[0.07] focus:border-[#ABC8A2] rounded-xl px-3.5 py-2 text-xs text-white outline-none transition-all font-sans resize-none"
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-mono text-zinc-400 mb-1">Category</label>
+                <input
+                  type="text"
+                  placeholder="Creative, Horology..."
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full bg-white/[0.03] focus:bg-black/40 border border-white/[0.07] focus:border-[#ABC8A2] rounded-xl px-3.5 py-2 text-xs text-white outline-none transition-all font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-mono text-zinc-400 mb-1">EST (HH:MM:SS)</label>
+                <input
+                  type="text"
+                  placeholder="04:30:00"
+                  value={estimatedTime}
+                  onChange={(e) => setEstimatedTime(e.target.value)}
+                  className="w-full bg-white/[0.03] focus:bg-black/40 border border-white/[0.07] focus:border-[#ABC8A2] rounded-xl px-3.5 py-2 text-xs text-[#ABC8A2] outline-none transition-all font-mono"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="block text-[11px] font-mono text-zinc-400 mb-1">Target Milestone</label>
+              <label className="block text-[11px] font-mono text-zinc-400 mb-1">Target Deadline</label>
               <input
                 type="datetime-local"
                 value={targetDeadline}
                 onChange={(e) => setTargetDeadline(e.target.value)}
-                className="w-full bg-white/[0.03] border border-white/[0.07] focus:border-[#06D6A0] rounded-xl px-3.5 py-2 text-xs text-white outline-none font-mono"
+                className="w-full bg-white/[0.03] border border-white/[0.07] focus:border-[#ABC8A2] rounded-xl px-3.5 py-2 text-xs text-white outline-none font-mono"
               />
             </div>
 
@@ -115,7 +147,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 type="submit"
                 className="px-4 py-1.5 rounded-xl text-xs font-semibold glass-button-primary cursor-pointer"
               >
-                Create
+                Create Project
               </button>
             </div>
           </form>

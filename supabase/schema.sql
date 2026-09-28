@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS public.projects (
     phases JSONB DEFAULT '[]'::jsonb,
     target_deadline TIMESTAMPTZ,
     raw_markdown TEXT,
+    estimated_time TEXT,
+    estimated_minutes INTEGER,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

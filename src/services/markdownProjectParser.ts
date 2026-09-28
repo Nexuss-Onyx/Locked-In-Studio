@@ -1,11 +1,30 @@
 import { ProjectPhase, ProjectTodo, Project } from '../types';
 
 /**
- * Utility to parse time strings like "4h", "12.5h", "45m", "2h 30m" into minutes
+ * Utility to parse time strings like "4h", "12.5h", "45m", "2h 30m", or "04:30:00" / "04:30" (EST:HH:MM:SS) into minutes
  */
 export function parseTimeToMinutes(timeStr?: string): number {
   if (!timeStr) return 0;
   const clean = timeStr.trim().toLowerCase();
+
+  // 1. Match HH:MM:SS or HH:MM format (e.g., "04:30:00", "14:30:00", "02:15")
+  const colonMatch = clean.match(/^(\d+):([0-5]?\d)(?::([0-5]?\d))?$/);
+  if (colonMatch) {
+    const hours = parseInt(colonMatch[1], 10);
+    const mins = parseInt(colonMatch[2], 10);
+    const secs = colonMatch[3] ? parseInt(colonMatch[3], 10) : 0;
+    return hours * 60 + mins + Math.round(secs / 60);
+  }
+
+  // Also support inline timestamp without prefix e.g. "est:04:30:00"
+  const estColonMatch = clean.match(/(?:est\s*:\s*)?(\d+):([0-5]?\d)(?::([0-5]?\d))?/);
+  if (estColonMatch && !clean.includes('h') && !clean.includes('m')) {
+    const hours = parseInt(estColonMatch[1], 10);
+    const mins = parseInt(estColonMatch[2], 10);
+    const secs = estColonMatch[3] ? parseInt(estColonMatch[3], 10) : 0;
+    return hours * 60 + mins + Math.round(secs / 60);
+  }
+
   let totalMinutes = 0;
 
   const hoursMatch = clean.match(/(\d+(?:\.\d+)?)\s*h/);
@@ -40,35 +59,104 @@ export function formatMinutesToLabel(minutes: number): string {
 }
 
 /**
- * Parse Markdown with arbitrary depth phases (#, ##, ###, ####...) and todos ([X], [!], [ ], [~])
+ * Format minutes into modern horology EST:HH:MM:SS format
+ */
+export function formatMinutesToHHMMSS(minutes?: number): string {
+  if (!minutes || minutes <= 0) return '00:00:00';
+  const totalSeconds = Math.round(minutes * 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const remainingSeconds = totalSeconds % 3600;
+  const mins = Math.floor(remainingSeconds / 60);
+  const secs = remainingSeconds % 60;
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(hours)}:${pad(mins)}:${pad(secs)}`;
+}
+
+export interface ParsedProjectResult {
+  name: string;
+  description: string;
+  category: string;
+  phases: ProjectPhase[];
+  estimatedTime?: string;
+  estimatedMinutes?: number;
+}
+
+/**
+ * Parse Markdown with frontmatter (--- name: ... description: ... EST:HH:MM:SS ---)
+ * and arbitrary depth phases (#, ##, ###, ####...) and todos ([X], [!], [ ], [~])
  */
 export function parseProjectMarkdown(
   rawContent: string,
   fallbackName = 'Untitled Project'
-): { name: string; description: string; category: string; phases: ProjectPhase[] } {
-  const lines = rawContent.split(/\r?\n/);
+): ParsedProjectResult {
+  let contentToParse = rawContent.trimStart();
   let projectName = fallbackName;
   let projectDescription = '';
   let projectCategory = 'Architecture & Design';
+  let projectEstimatedTime: string | undefined = undefined;
+  let projectEstimatedMinutes: number | undefined = undefined;
+
+  // =========================================================================
+  // 1. FRONTMATTER SYNTAX: --- name: ... description: ... EST:HH:MM:SS ---
+  // Supports both single-line & multi-line YAML frontmatter blocks
+  // =========================================================================
+  const frontmatterMatch = contentToParse.match(/^---\s*([\s\S]*?)\s*---(?:\r?\n|$)/);
+  if (frontmatterMatch) {
+    const block = frontmatterMatch[1].trim();
+    // Slice off frontmatter block so subsequent phase parsing proceeds cleanly
+    contentToParse = contentToParse.slice(frontmatterMatch[0].length);
+
+    // Multi-key inline regex extraction:
+    // Matches keys: name, title, project; description, desc; category, department; est, estimate, time
+    const nameMatch = block.match(/(?:^|\n|\s)(?:name|title|project)\s*:\s*(.+?)(?=(?:\n|\s)(?:description|desc|category|department|est|estimate|time)\s*:|$)/i);
+    if (nameMatch) projectName = nameMatch[1].trim();
+
+    const descMatch = block.match(/(?:^|\n|\s)(?:description|desc)\s*:\s*(.+?)(?=(?:\n|\s)(?:name|title|project|category|department|est|estimate|time)\s*:|$)/i);
+    if (descMatch) projectDescription = descMatch[1].trim();
+
+    const catMatch = block.match(/(?:^|\n|\s)(?:category|department)\s*:\s*(.+?)(?=(?:\n|\s)(?:name|title|project|description|desc|est|estimate|time)\s*:|$)/i);
+    if (catMatch) projectCategory = catMatch[1].trim();
+
+    const estMatch = block.match(/(?:^|\n|\s)(?:est|estimate|time)\s*:\s*(.+?)(?=(?:\n|\s)(?:name|title|project|description|desc|category|department)\s*:|$)/i);
+    if (estMatch) {
+      projectEstimatedTime = estMatch[1].trim();
+      projectEstimatedMinutes = parseTimeToMinutes(projectEstimatedTime);
+    }
+
+    // Line-by-line fallback for structured YAML
+    const blockLines = block.split(/\r?\n/);
+    for (const bLine of blockLines) {
+      const trimmed = bLine.trim();
+      const m = trimmed.match(/^([a-zA-Z_-]+)\s*:\s*(.*)$/);
+      if (m) {
+        const k = m[1].toLowerCase();
+        const v = m[2].trim();
+        if ((k === 'name' || k === 'title' || k === 'project') && v) projectName = v;
+        if ((k === 'description' || k === 'desc') && v) projectDescription = v;
+        if ((k === 'category' || k === 'department') && v) projectCategory = v;
+        if ((k === 'est' || k === 'estimate' || k === 'time') && v) {
+          projectEstimatedTime = v;
+          projectEstimatedMinutes = parseTimeToMinutes(v);
+        }
+      }
+    }
+  }
+
+  const lines = contentToParse.split(/\r?\n/);
   const rootPhases: ProjectPhase[] = [];
-
-  // Phase stack: maintains the active ancestry of nested phases
-  // stack[0] is level 1, stack[1] is level 2, etc.
   const phaseStack: ProjectPhase[] = [];
-
   let isReadingHeader = true;
 
   // Regular Expressions for Markdown Project Syntax
-  // 1. Phase line with optional time prefix or suffix:
-  // e.g., "[ 4h ] - # Phase Name" or "[ 12.5h ] - ### Deep Subphase" or "## [ 2h ] Subphase" or "# Phase Name [ 6h ]" or "# Phase Name"
+  // Phase line: "[ 4h ] - # Phase Name" or "[ 04:30:00 ] - # Phase"
   const phaseRegex = /^(?:\[\s*([^\]]+?)\s*\]\s*-\s*)?(#{1,10})\s*(?:\[\s*([^\]]+?)\s*\]\s*)?(.*?)(?:\s*\[\s*([^\]]+?)\s*\])?$/;
 
-  // 2. Todo line:
-  // e.g., "- [ X ] Title", "* [ ! ] Urgent task", "[ ~ ] Working on CAD", "[   ] Standard item"
+  // Todo line: "- [ X ] Title [ 2h ]" or "* [ ! ] Urgent [ 01:30:00 ]"
   const todoRegex = /^\s*(?:[-*+]\s+)?\[\s*([Xxi!~ ]?)\s*\]\s*(.*?)(?:\s*\[\s*([^\]]+?)\s*\])?$/;
 
-  // 3. Project Title Header in markdown (e.g. "Project: Lake Como Villa" or "# Project: Title")
-  const projectTitleRegex = /^(?:#+\s*)?(?:Project|Workspace)\s*:\s*(.+)$/i;
+  // Project Header in markdown (e.g. "Project: Lake Como Villa" or "# Project: Title")
+  const projectTitleRegex = /^(?:#+\s*)?(?:Project|Workspace|Name)\s*:\s*(.+)$/i;
 
   let currentPhaseId = 1;
   let currentTodoId = 1;
@@ -78,6 +166,26 @@ export function parseProjectMarkdown(
     const line = rawLine.trim();
 
     if (!line) continue;
+
+    // Check for inline frontmatter on an arbitrary line e.g. "--- name: ... description: ... EST:HH:MM:SS ---"
+    if (line.startsWith('---') && line.endsWith('---') && line.length > 6) {
+      const inner = line.slice(3, -3).trim();
+      const nMatch = inner.match(/(?:^|\s)(?:name|title|project)\s*:\s*(.+?)(?=(?:\s)(?:description|desc|category|department|est|estimate|time)\s*:|$)/i);
+      if (nMatch) projectName = nMatch[1].trim();
+
+      const dMatch = inner.match(/(?:^|\s)(?:description|desc)\s*:\s*(.+?)(?=(?:\s)(?:name|title|project|category|department|est|estimate|time)\s*:|$)/i);
+      if (dMatch) projectDescription = dMatch[1].trim();
+
+      const cMatch = inner.match(/(?:^|\s)(?:category|department)\s*:\s*(.+?)(?=(?:\s)(?:name|title|project|description|desc|est|estimate|time)\s*:|$)/i);
+      if (cMatch) projectCategory = cMatch[1].trim();
+
+      const eMatch = inner.match(/(?:^|\s)(?:est|estimate|time)\s*:\s*(.+?)(?=(?:\s)(?:name|title|project|description|desc|category|department)\s*:|$)/i);
+      if (eMatch) {
+        projectEstimatedTime = eMatch[1].trim();
+        projectEstimatedMinutes = parseTimeToMinutes(projectEstimatedTime);
+      }
+      continue;
+    }
 
     // Check for explicit Project Name header
     const titleMatch = line.match(projectTitleRegex);
@@ -90,6 +198,14 @@ export function parseProjectMarkdown(
     const catMatch = line.match(/^(?:Category|Department)\s*:\s*(.+)$/i);
     if (catMatch && isReadingHeader) {
       projectCategory = catMatch[1].trim();
+      continue;
+    }
+
+    // Check for EST: header e.g. "EST: 04:30:00"
+    const estHeaderMatch = line.match(/^(?:EST|Estimate|Time)\s*:\s*(.+)$/i);
+    if (estHeaderMatch && isReadingHeader) {
+      projectEstimatedTime = estHeaderMatch[1].trim();
+      projectEstimatedMinutes = parseTimeToMinutes(projectEstimatedTime);
       continue;
     }
 
@@ -117,18 +233,14 @@ export function parseProjectMarkdown(
         subphases: [],
       };
 
-      // Hierarchy Stack Management:
-      // Elevate or descend based on level
-      // Pop items from the stack until the parent's level is strictly less than this phase's level
+      // Hierarchy Stack Management
       while (phaseStack.length > 0 && phaseStack[phaseStack.length - 1].level >= level) {
         phaseStack.pop();
       }
 
       if (phaseStack.length === 0) {
-        // Root Phase (Level 1, or elevated back to top)
         rootPhases.push(newPhase);
       } else {
-        // Nested Subphase of the current parent phase
         const parent = phaseStack[phaseStack.length - 1];
         parent.subphases.push(newPhase);
       }
@@ -164,8 +276,6 @@ export function parseProjectMarkdown(
         estimatedMinutes: todoTimeBudget ? parseTimeToMinutes(todoTimeBudget) : undefined,
       };
 
-      // Ensure every todo belongs to a phase:
-      // If no phase has been opened yet, create an initial Phase 1
       if (phaseStack.length === 0) {
         const defaultPhase: ProjectPhase = {
           id: `phase-${Date.now()}-${currentPhaseId++}`,
@@ -178,14 +288,13 @@ export function parseProjectMarkdown(
         phaseStack.push(defaultPhase);
       }
 
-      // Attach todo to the innermost active phase
       const currentActivePhase = phaseStack[phaseStack.length - 1];
       currentActivePhase.todos.push(newTodo);
       continue;
     }
 
     // Description text before first phase
-    if (isReadingHeader && !line.startsWith('#') && !line.startsWith('[')) {
+    if (isReadingHeader && !line.startsWith('#') && !line.startsWith('[') && !line.startsWith('---')) {
       projectDescription += (projectDescription ? '\n' : '') + line;
     }
   }
@@ -223,24 +332,42 @@ export function parseProjectMarkdown(
     description: projectDescription || 'High-craft architectural and creative direction masterplan.',
     category: projectCategory,
     phases: rootPhases,
+    estimatedTime: projectEstimatedTime,
+    estimatedMinutes: projectEstimatedMinutes,
   };
 }
 
 /**
  * Serialize a Project and its recursive Phase tree into pristine Markdown
+ * Formatted with modern frontmatter: --- name: ... description: ... EST:HH:MM:SS ---
  */
 export function serializeProjectToMarkdown(project: Project): string {
   let md = '';
 
-  // Project Header
-  md += `Project: ${project.name}\n`;
+  // Determine Project-Level Total Time Estimate
+  let est = project.estimatedTime;
+  if (!est && project.estimatedMinutes) {
+    est = formatMinutesToHHMMSS(project.estimatedMinutes);
+  } else if (!est) {
+    const stats = calculateProjectStats(project);
+    if (stats.totalBudgetMinutes > 0) {
+      est = formatMinutesToHHMMSS(stats.totalBudgetMinutes);
+    }
+  }
+
+  // Modern Frontmatter Block
+  md += `---\n`;
+  md += `name: ${project.name}\n`;
   if (project.category) {
-    md += `Category: ${project.category}\n`;
+    md += `category: ${project.category}\n`;
   }
   if (project.description) {
-    md += `${project.description}\n`;
+    md += `description: ${project.description}\n`;
   }
-  md += `\n`;
+  if (est) {
+    md += `EST: ${est}\n`;
+  }
+  md += `---\n\n`;
 
   // Recursive Phase Serializer
   function serializePhase(phase: ProjectPhase) {

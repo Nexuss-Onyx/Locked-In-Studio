@@ -12,9 +12,12 @@ const STORAGE_KEYS = {
   CUSTOM_WALLPAPERS: 'aura_custom_wallpapers_v1',
 };
 
-const RAW_PROJECT_1_MD = `Project: Maison & Haute Couture Lookbook
-Category: Creative Direction
-Bespoke runway visual direction and textile curation for Paris Fashion Week.
+const RAW_PROJECT_1_MD = `---
+name: Maison & Haute Couture Lookbook
+category: Creative Direction
+description: Bespoke runway visual direction and textile curation for Paris Fashion Week.
+EST: 64:00:00
+---
 
 [ 16h ] - # Phase One: Autumn Collection Narrative & Mood Synthesis
 - [ X ] Archive research into 1920s Paul Poiret drapery techniques [ 4h ]
@@ -32,9 +35,12 @@ Bespoke runway visual direction and textile curation for Paris Fashion Week.
 - [   ] Casting directional models and garment sequencing [ 4h ]
 `;
 
-const RAW_PROJECT_2_MD = `Project: Villa Bellagio Architectural Studio
-Category: Architecture & Heritage
-Lake Como private residential estate masterplan and travertine stone specifications.
+const RAW_PROJECT_2_MD = `---
+name: Villa Bellagio Architectural Studio
+category: Architecture & Heritage
+description: Lake Como private residential estate masterplan and travertine stone specifications.
+EST: 68:00:00
+---
 
 [ 14h ] - # Phase One: Site Topography & Spatial Masterplan
 - [ X ] Aerial drone lidar scan of Lake Como promontory [ 2h ]
@@ -55,9 +61,12 @@ Lake Como private residential estate masterplan and travertine stone specificati
 - [   ] Acoustic felt and linen acoustic wall paneling mockups [ 4h ]
 `;
 
-const RAW_PROJECT_3_MD = `Project: Sovereign Heritage Capital
-Category: Private Equity
-Private equity syndicate for vintage horology and rare timepiece acquisitions.
+const RAW_PROJECT_3_MD = `---
+name: Sovereign Heritage Capital
+category: Private Equity
+description: Private equity syndicate for vintage horology and rare timepiece acquisitions.
+EST: 36:00:00
+---
 
 [ 22h ] - # Phase One: Horology & Heritage Portfolio M&A
 - [ X ] Complete buy-side due diligence for Geneva watchmaker [ 8h ]
@@ -79,37 +88,43 @@ const INITIAL_PROJECTS: Project[] = [
     id: 'proj-1',
     name: parsedP1.name,
     description: parsedP1.description,
-    color: '#D4AF37', // Champagne Gold
+    color: '#ABC8A2', // Soft Sage
     icon: 'Sparkles',
     category: parsedP1.category,
     targetDeadline: '2026-10-15T18:00',
     createdAt: '2026-09-01T10:00:00Z',
     rawMarkdown: RAW_PROJECT_1_MD,
     phases: parsedP1.phases,
+    estimatedTime: parsedP1.estimatedTime,
+    estimatedMinutes: parsedP1.estimatedMinutes,
   },
   {
     id: 'proj-2',
     name: parsedP2.name,
     description: parsedP2.description,
-    color: '#C5A059', // Aged Brass
+    color: '#8EA985', // Sage Accent
     icon: 'Layers',
     category: parsedP2.category,
     targetDeadline: '2026-10-05T12:00',
     createdAt: '2026-09-10T14:30:00Z',
     rawMarkdown: RAW_PROJECT_2_MD,
     phases: parsedP2.phases,
+    estimatedTime: parsedP2.estimatedTime,
+    estimatedMinutes: parsedP2.estimatedMinutes,
   },
   {
     id: 'proj-3',
     name: parsedP3.name,
     description: parsedP3.description,
-    color: '#EBD8B0', // Warm Alabaster
+    color: '#73916D', // Deep Sage
     icon: 'Cpu',
     category: parsedP3.category,
     targetDeadline: '2026-10-20T20:00',
     createdAt: '2026-09-15T09:00:00Z',
     rawMarkdown: RAW_PROJECT_3_MD,
     phases: parsedP3.phases,
+    estimatedTime: parsedP3.estimatedTime,
+    estimatedMinutes: parsedP3.estimatedMinutes,
   },
 ];
 
