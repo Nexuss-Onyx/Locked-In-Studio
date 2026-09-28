@@ -5,7 +5,8 @@ import {
   Upload, 
   Check, 
   HelpCircle,
-  ArrowRight
+  ArrowRight,
+  Plus
 } from 'lucide-react';
 import { parseProjectMarkdown, calculateProjectStats } from '../services/markdownProjectParser';
 import { Project } from '../types';
@@ -185,9 +186,12 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
         >
           {/* Header */}
           <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center justify-between">
-            <h2 className="text-base font-serif font-medium text-[#F7F4EE] tracking-wide">
-              Import Markdown
-            </h2>
+            <div className="flex items-center gap-2.5">
+              <Plus className="w-4 h-4 text-[#ABC8A2]" />
+              <h2 className="text-base font-serif font-medium text-[#F7F4EE] tracking-wide">
+                {defaultProjectId ? 'Sync Project Markdown' : 'New Project'}
+              </h2>
+            </div>
 
             <div className="flex items-center gap-2">
               <button
@@ -360,9 +364,9 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
             <motion.button
               whileTap={{ scale: 0.96 }}
               onClick={handleConfirmImport}
-              className="px-4 py-1.5 rounded-lg glass-button-primary text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(216,201,163,0.2)]"
+              className="px-4 py-1.5 rounded-lg glass-button-primary text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(171,200,162,0.2)]"
             >
-              <span>Import</span>
+              <span>{targetMode === 'existing' ? 'Update Project' : 'Create Project'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </motion.button>
           </div>

@@ -7,7 +7,7 @@ interface HeaderProps {
   title: string;
   searchQuery: string;
   onSearchChange: (q: string) => void;
-  onOpenImport: () => void;
+  onOpenNewProject: () => void;
   onGoToLockIn: () => void;
   onOpenShortcuts?: () => void;
   onOpenMobileMenu?: () => void;
@@ -17,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   title,
   searchQuery,
   onSearchChange,
-  onOpenImport,
+  onOpenNewProject,
   onGoToLockIn,
   onOpenShortcuts,
   onOpenMobileMenu,
@@ -98,18 +98,18 @@ export const Header: React.FC<HeaderProps> = ({
           <Timer className="w-4 h-4 text-[#E5C158]" />
         </motion.button>
 
-        {/* Import Markdown Button (Replaces + Task) */}
+        {/* New Project Button */}
         <motion.button
           whileTap={{ scale: 0.94 }}
           onClick={() => {
             soundManager.playTick();
-            onOpenImport();
+            onOpenNewProject();
           }}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl glass-button-primary text-xs font-semibold tracking-tight cursor-pointer shadow-[0_0_14px_rgba(216,201,163,0.25)]"
-          title="Import Project Markdown (I / N)"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl glass-button-primary text-xs font-semibold tracking-tight cursor-pointer shadow-[0_0_14px_rgba(171,200,162,0.25)]"
+          title="New Project (N)"
         >
-          <Upload className="w-3.5 h-3.5 stroke-[2.2]" />
-          <span className="font-sans">Import</span>
+          <Plus className="w-3.5 h-3.5 stroke-[2.4]" />
+          <span className="font-sans">New Project</span>
         </motion.button>
 
         {/* Shortcuts Icon Button */}

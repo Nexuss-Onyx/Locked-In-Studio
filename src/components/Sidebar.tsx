@@ -19,7 +19,6 @@ interface SidebarProps {
   onViewChange: (view: 'dashboard' | 'projects' | 'lockin' | 'changelog' | 'heatmap') => void;
   projectCount: number;
   activeStreak: number;
-  onOpenImport: () => void;
   onOpenNewProject: () => void;
   onOpenShortcuts: () => void;
   isOpenMobile?: boolean;
@@ -31,7 +30,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onViewChange,
   projectCount,
   activeStreak,
-  onOpenImport,
   onOpenNewProject,
   onOpenShortcuts,
   isOpenMobile = false,
@@ -84,26 +82,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          {/* Quick Action Buttons */}
-          <div className="space-y-1.5 mb-5">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => {
-                soundManager.playTick();
-                onOpenImport();
-                if (onCloseMobile) onCloseMobile();
-              }}
-              className="w-full flex items-center justify-between py-2 px-3 rounded-xl glass-button-primary text-xs font-semibold tracking-wide cursor-pointer group shadow-[0_0_12px_rgba(216,201,163,0.2)]"
-            >
-              <div className="flex items-center gap-2">
-                <Upload className="w-3.5 h-3.5 stroke-[2.2]" />
-                <span className="font-sans">Import Markdown</span>
-              </div>
-              <kbd className="text-[9px] font-mono text-[#181208] font-bold bg-black/15 px-1.5 py-0.2 rounded border border-black/10">
-                I
-              </kbd>
-            </motion.button>
-
+          {/* Quick Action: New Project */}
+          <div className="mb-5">
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => {
@@ -111,14 +91,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onOpenNewProject();
                 if (onCloseMobile) onCloseMobile();
               }}
-              className="w-full flex items-center justify-between py-1.5 px-3 rounded-xl glass-button text-zinc-300 hover:text-white text-xs font-medium cursor-pointer group"
+              className="w-full flex items-center justify-between py-2 px-3 rounded-xl glass-button-primary text-xs font-semibold tracking-wide cursor-pointer group shadow-[0_0_12px_rgba(171,200,162,0.2)]"
             >
               <div className="flex items-center gap-2">
-                <Plus className="w-3.5 h-3.5 text-[#C5A059]" />
+                <Plus className="w-3.5 h-3.5 stroke-[2.4]" />
                 <span className="font-sans">New Project</span>
               </div>
-              <kbd className="text-[9px] font-mono text-zinc-400 bg-white/5 px-1.5 py-0.2 rounded border border-white/10">
-                P
+              <kbd className="text-[9px] font-mono text-[#181208] font-bold bg-black/15 px-1.5 py-0.5 rounded border border-black/10">
+                N
               </kbd>
             </motion.button>
           </div>

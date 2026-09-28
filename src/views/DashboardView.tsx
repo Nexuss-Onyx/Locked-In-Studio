@@ -20,7 +20,7 @@ interface DashboardViewProps {
   onSelectProject: (projectId: string) => void;
   onToggleTaskComplete: (taskId: string) => void;
   onStartLockInWithTask: (task: Task) => void;
-  onOpenImport: () => void;
+  onOpenNewProject: () => void;
 }
 
 interface WeekCadence {
@@ -43,7 +43,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onSelectProject,
   onToggleTaskComplete,
   onStartLockInWithTask,
-  onOpenImport,
+  onOpenNewProject,
 }) => {
   const [hoveredWeek, setHoveredWeek] = useState<WeekCadence | null>(null);
   const [activeMetricView, setActiveMetricView] = useState<'focus' | 'tasks'>('focus');
@@ -186,10 +186,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>All priority milestones clear. Ready for your next focus session.</span>
           </div>
           <button
-            onClick={() => onOpenImport()}
+            onClick={() => onOpenNewProject()}
             className="text-xs text-[#ABC8A2] hover:underline font-sans cursor-pointer"
           >
-            + Import Markdown Project
+            + New Project
           </button>
         </div>
       )}
@@ -600,12 +600,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <button
             onClick={() => {
               soundManager.playTick();
-              onOpenImport();
+              onOpenNewProject();
             }}
             className="mt-3.5 w-full py-2 rounded-xl glass-button text-stone-300 hover:text-white text-xs font-medium transition-all cursor-pointer text-center flex items-center justify-center gap-1.5"
           >
-            <Upload className="w-3.5 h-3.5 text-[#D8C9A3]" />
-            <span className="font-sans">Import Markdown Project</span>
+            <Plus className="w-3.5 h-3.5 text-[#ABC8A2]" />
+            <span className="font-sans">New Project</span>
           </button>
         </div>
       </div>

@@ -8,7 +8,6 @@ import { ProjectsView } from './views/ProjectsView';
 import { LockInView } from './views/LockInView';
 import { ChangelogView } from './views/ChangelogView';
 import { ContributionView } from './views/ContributionView';
-import { ProjectModal } from './components/ProjectModal';
 import { ImportMarkdownModal } from './components/ImportMarkdownModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { soundManager } from './services/audio';
@@ -24,10 +23,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
-  // Modals
-  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
-  const [importTargetProjectId, setImportTargetProjectId] = useState<string | undefined>(undefined);
-  const [isProjectModalOpen, setIsProjectModalOpen] = useState<boolean>(false);
+  // Unified New Project Modal (Powered by pristine Markdown & Frontmatter engine)
+  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState<boolean>(false);
+  const [newProjectTargetProjectId, setNewProjectTargetProjectId] = useState<string | undefined>(undefined);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
@@ -72,15 +70,11 @@ export default function App() {
         e.preventDefault();
         soundManager.playTick();
         setIsShortcutsModalOpen((prev) => !prev);
-      } else if (e.key === 'i' || e.key === 'I' || e.key === 'n' || e.key === 'N') {
+      } else if (e.key === 'i' || e.key === 'I' || e.key === 'n' || e.key === 'N' || e.key === 'p' || e.key === 'P') {
         e.preventDefault();
         soundManager.playTick();
-        setImportTargetProjectId(undefined);
-        setIsImportModalOpen(true);
-      } else if (e.key === 'p' || e.key === 'P') {
-        e.preventDefault();
-        soundManager.playTick();
-        setIsProjectModalOpen(true);
+        setNewProjectTargetProjectId(undefined);
+        setIsNewProjectModalOpen(true);
       } else if (e.key === '1') {
         soundManager.playTick();
         setCurrentView('dashboard');
@@ -150,13 +144,6 @@ export default function App() {
     }
   };
 
-  const handleSaveProjectModal = (projectData: any) => {
-    const newProj = StorageService.createProject(projectData);
-    setProjects(StorageService.getProjects());
-    setSelectedProjectId(newProj.id);
-    setCurrentView('projects');
-  };
-
   // Task & Lock-In Handlers
   const handleToggleTaskComplete = (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
@@ -221,12 +208,9 @@ export default function App() {
         onViewChange={setCurrentView}
         projectCount={projects.length}
         activeStreak={contributionData.currentStreak}
-        onOpenImport={() => {
-          setImportTargetProjectId(undefined);
-          setIsImportModalOpen(true);
-        }}
         onOpenNewProject={() => {
-          setIsProjectModalOpen(true);
+          setNewProjectTargetProjectId(undefined);
+          setIsNewProjectModalOpen(true);
         }}
         onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
         isOpenMobile={isMobileMenuOpen}
@@ -241,9 +225,9 @@ export default function App() {
           title={getHeaderTitle()}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onOpenImport={() => {
-            setImportTargetProjectId(undefined);
-            setIsImportModalOpen(true);
+          onOpenNewProject={() => {
+            setNewProjectTargetProjectId(undefined);
+            setIsNewProjectModalOpen(true);
           }}
           onGoToLockIn={() => {
             soundManager.playTick();
@@ -267,9 +251,9 @@ export default function App() {
               }}
               onToggleTaskComplete={handleToggleTaskComplete}
               onStartLockInWithTask={handleStartLockInWithTask}
-              onOpenImport={() => {
-                setImportTargetProjectId(undefined);
-                setIsImportModalOpen(true);
+              onOpenNewProject={() => {
+                setNewProjectTargetProjectId(undefined);
+                setIsNewProjectModalOpen(true);
               }}
             />
           )}
@@ -281,11 +265,10 @@ export default function App() {
               onSelectProject={setSelectedProjectId}
               onUpdateProject={handleUpdateProject}
               onDeleteProject={handleDeleteProject}
-              onOpenImportModal={(projId) => {
-                setImportTargetProjectId(projId);
-                setIsImportModalOpen(true);
+              onOpenNewProject={(projId) => {
+                setNewProjectTargetProjectId(projId);
+                setIsNewProjectModalOpen(true);
               }}
-              onOpenNewProjectModal={() => setIsProjectModalOpen(true)}
               onStartLockInWithTodo={handleStartLockInWithTodo}
               searchQuery={searchQuery}
             />
@@ -318,23 +301,16 @@ export default function App() {
         </main>
       </div>
 
-      {/* Import Markdown Modal */}
+      {/* Unified New Project Modal (Powered by Markdown & Frontmatter Engine) */}
       <ImportMarkdownModal
-        isOpen={isImportModalOpen}
+        isOpen={isNewProjectModalOpen}
         onClose={() => {
-          setIsImportModalOpen(false);
-          setImportTargetProjectId(undefined);
+          setIsNewProjectModalOpen(false);
+          setNewProjectTargetProjectId(undefined);
         }}
         onImport={handleImportMarkdown}
         existingProjects={projects}
-        defaultProjectId={importTargetProjectId}
-      />
-
-      {/* Project Modal */}
-      <ProjectModal
-        isOpen={isProjectModalOpen}
-        onClose={() => setIsProjectModalOpen(false)}
-        onSave={handleSaveProjectModal}
+        defaultProjectId={newProjectTargetProjectId}
       />
 
       {/* Shortcuts Modal */}

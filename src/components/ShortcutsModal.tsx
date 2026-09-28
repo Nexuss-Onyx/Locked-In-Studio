@@ -13,10 +13,9 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
 
   const shortcuts = [
     { key: '⌘ K / /', label: 'Spotlight Search' },
-    { key: 'N', label: 'New Task' },
-    { key: 'P', label: 'New Project' },
+    { key: 'N', label: 'New Project' },
     { key: 'Space', label: 'Start / Pause Lock-In Timer' },
-    { key: '1 - 4', label: 'Switch Views (Overview..Changelog)' },
+    { key: '1 - 5', label: 'Switch Views (Overview..Activity)' },
     { key: 'Esc', label: 'Close Modals / Exit Fullscreen' },
     { key: '?', label: 'Open Shortcuts' },
   ];
@@ -40,7 +39,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
         >
           <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] mb-4">
             <div className="flex items-center gap-2">
-              <Command className="w-3.5 h-3.5 text-[#06D6A0]" />
+              <Command className="w-3.5 h-3.5 text-[#ABC8A2]" />
               <h2 className="text-xs font-semibold uppercase tracking-wider font-mono text-white/90">
                 Shortcuts
               </h2>
