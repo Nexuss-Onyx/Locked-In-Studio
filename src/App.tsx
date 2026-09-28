@@ -72,6 +72,31 @@ export default function App() {
     setSecondsLeft(selectedMinutes * 60);
   }, [selectedMinutes, selectedLockInTask, timerTag]);
 
+  // End Early Handler: Permanently preserves any elapsed focus time to LocalStorage & Supabase
+  const handleEndEarly = useCallback(() => {
+    soundManager.playCompletionChime();
+    setIsTimerRunning(false);
+    setIsTimerPaused(false);
+
+    const elapsedMins = liveElapsedSeconds >= 5
+      ? Math.max(1, Math.round(liveElapsedSeconds / 60))
+      : 0;
+
+    if (elapsedMins > 0) {
+      StorageService.recordFocusSession({
+        taskId: selectedLockInTask?.id,
+        taskTitle: timerTag || selectedLockInTask?.title || 'Deep Work Session',
+        durationMinutes: elapsedMins,
+      });
+      setSessions(StorageService.getFocusSessions());
+      setTasks(StorageService.getTasks());
+      setProjects(StorageService.getProjects());
+    }
+
+    setLiveElapsedSeconds(0);
+    setSecondsLeft(selectedMinutes * 60);
+  }, [liveElapsedSeconds, selectedMinutes, selectedLockInTask, timerTag]);
+
   // Global background ticker
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -111,11 +136,23 @@ export default function App() {
 
   const handleResetTimer = useCallback(() => {
     soundManager.playTick();
+    // If the user accumulated focused sprint time before resetting, record it permanently
+    if (liveElapsedSeconds >= 5) {
+      const elapsedMins = Math.max(1, Math.round(liveElapsedSeconds / 60));
+      StorageService.recordFocusSession({
+        taskId: selectedLockInTask?.id,
+        taskTitle: timerTag || selectedLockInTask?.title || 'Deep Work Session',
+        durationMinutes: elapsedMins,
+      });
+      setSessions(StorageService.getFocusSessions());
+      setTasks(StorageService.getTasks());
+      setProjects(StorageService.getProjects());
+    }
     setIsTimerRunning(false);
     setIsTimerPaused(false);
     setLiveElapsedSeconds(0);
     setSecondsLeft(selectedMinutes * 60);
-  }, [selectedMinutes]);
+  }, [liveElapsedSeconds, selectedMinutes, selectedLockInTask, timerTag]);
 
   const handleToggleTimer = useCallback(() => {
     if (!isTimerRunning) handleStartTimer();
@@ -417,6 +454,7 @@ export default function App() {
               onPauseTimer={handlePauseTimer}
               onResumeTimer={handleResumeTimer}
               onResetTimer={handleResetTimer}
+              onEndEarly={handleEndEarly}
               onToggleTimer={handleToggleTimer}
               onChangeDuration={handleChangeDuration}
               onAdjustSecondsLeft={handleAdjustSecondsLeft}

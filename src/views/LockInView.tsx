@@ -45,6 +45,7 @@ interface LockInViewProps {
   onPauseTimer: () => void;
   onResumeTimer: () => void;
   onResetTimer: () => void;
+  onEndEarly: () => void;
   onToggleTimer: () => void;
   onChangeDuration: (mins: number) => void;
   onAdjustSecondsLeft: (deltaSecs: number) => void;
@@ -96,6 +97,7 @@ export const LockInView: React.FC<LockInViewProps> = ({
   onPauseTimer,
   onResumeTimer,
   onResetTimer,
+  onEndEarly,
   onToggleTimer,
   onChangeDuration,
   onAdjustSecondsLeft,
@@ -445,7 +447,7 @@ export const LockInView: React.FC<LockInViewProps> = ({
 
               <motion.button
                 whileTap={{ scale: 0.96 }}
-                onClick={resetTimer}
+                onClick={onEndEarly}
                 className="px-6 py-3.5 rounded-full bg-black/70 backdrop-blur-xl border border-white/20 text-white font-bold text-xs tracking-wider uppercase cursor-pointer hover:bg-black/90"
               >
                 End Early

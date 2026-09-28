@@ -335,8 +335,14 @@ export const StorageService = {
 
   recordFocusSession(session: Omit<FocusSession, 'id' | 'completedAt'>): FocusSession {
     const sessions = this.getFocusSessions();
+    let projectId = session.projectId;
+    if (!projectId && session.taskId) {
+      const task = this.getTasks().find(t => t.id === session.taskId);
+      if (task) projectId = task.projectId;
+    }
     const newSession: FocusSession = {
       ...session,
+      projectId,
       id: 'fs-' + Date.now(),
       completedAt: new Date().toISOString(),
     };
