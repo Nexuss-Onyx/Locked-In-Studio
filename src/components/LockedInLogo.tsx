@@ -57,15 +57,15 @@ export const LockedInLogo: React.FC<LockedInLogoProps> = ({
 
         {/* 3. CLOCK MECHANISM WITH IMMUTABLE CENTER PIVOT AT (32, 37) */}
         <g transform="translate(32, 37)">
-          {/* Rotating Hand: starts strictly at (0, 0) and extends to (0, -13) */}
+          {/* Modernized Sleek Shorter Clock Hand (starts at (0, 0), extends to (0, -8.5)) */}
           <line
             key={isLockedIn ? 'locked-active' : 'locked-idle'}
             x1="0"
             y1="0"
             x2="0"
-            y2="-13"
+            y2="-8.5"
             stroke="#ABC8A2"
-            strokeWidth="3.5"
+            strokeWidth="3.2"
             strokeLinecap="round"
           >
             {isLockedIn && (

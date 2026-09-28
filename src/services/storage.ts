@@ -1,5 +1,6 @@
 import { Project, Task, FocusSession, AIChangelogReport, ContributionDay } from '../types';
 import { parseProjectMarkdown } from './markdownProjectParser';
+import { SupabaseService } from './supabase';
 
 const STORAGE_KEYS = {
   PROJECTS: 'aura_projects_v3',
@@ -350,6 +351,9 @@ export const StorageService = {
 
   saveProjects(projects: Project[]) {
     localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+    if (SupabaseService.isConfigured()) {
+      SupabaseService.upsertProjects(projects).catch(() => {});
+    }
   },
 
   createProject(project: Omit<Project, 'id' | 'createdAt'>): Project {
@@ -405,6 +409,9 @@ export const StorageService = {
 
   saveTasks(tasks: Task[]) {
     localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
+    if (SupabaseService.isConfigured()) {
+      SupabaseService.upsertTasks(tasks).catch(() => {});
+    }
   },
 
   createTask(task: Omit<Task, 'id' | 'createdAt' | 'status' | 'subtasks'> & { subtasks?: { title: string }[] }): Task {
@@ -504,6 +511,10 @@ export const StorageService = {
     };
     sessions.unshift(newSession);
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+
+    if (SupabaseService.isConfigured()) {
+      SupabaseService.upsertSessions([newSession]).catch(() => {});
+    }
 
     if (session.taskId) {
       this.logTaskFocus(session.taskId, session.durationMinutes);
@@ -666,5 +677,47 @@ export const StorageService = {
 
   saveWallpaperRotations(rotations: Record<string, number>) {
     localStorage.setItem(STORAGE_KEYS.WALLPAPER_ROTATIONS, JSON.stringify(rotations));
+  },
+
+  // Automatic Cloud Initialization & Sync
+  async initSupabaseSync(): Promise<{ synced: boolean; message: string }> {
+    if (!SupabaseService.isConfigured()) {
+      return { synced: false, message: 'Local storage active (Supabase not connected)' };
+    }
+
+    try {
+      const [remoteProjects, remoteTasks, remoteSessions] = await Promise.all([
+        SupabaseService.fetchProjects(),
+        SupabaseService.fetchTasks(),
+        SupabaseService.fetchSessions(),
+      ]);
+
+      const localProjects = this.getProjects();
+      const localTasks = this.getTasks();
+      const localSessions = this.getFocusSessions();
+
+      if (remoteProjects && remoteProjects.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(remoteProjects));
+      } else if (localProjects.length > 0) {
+        await SupabaseService.upsertProjects(localProjects);
+      }
+
+      if (remoteTasks && remoteTasks.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(remoteTasks));
+      } else if (localTasks.length > 0) {
+        await SupabaseService.upsertTasks(localTasks);
+      }
+
+      if (remoteSessions && remoteSessions.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(remoteSessions));
+      } else if (localSessions.length > 0) {
+        await SupabaseService.upsertSessions(localSessions);
+      }
+
+      return { synced: true, message: 'Connected & synced with Supabase' };
+    } catch (err) {
+      console.warn('Supabase initial sync interlude:', err);
+      return { synced: false, message: 'Sync failed, running local storage' };
+    }
   },
 };

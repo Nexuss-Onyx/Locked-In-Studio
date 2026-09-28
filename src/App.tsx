@@ -35,6 +35,15 @@ export default function App() {
     setTasks(StorageService.getTasks());
     setSessions(StorageService.getFocusSessions());
     setCurrentWallpaperId(StorageService.getSelectedWallpaper());
+
+    // Asynchronously connect to Supabase if credentials are provided in Vercel
+    StorageService.initSupabaseSync().then(result => {
+      if (result.synced) {
+        setProjects(StorageService.getProjects());
+        setTasks(StorageService.getTasks());
+        setSessions(StorageService.getFocusSessions());
+      }
+    });
   }, []);
 
   const contributionData = StorageService.getContributionActivity();
