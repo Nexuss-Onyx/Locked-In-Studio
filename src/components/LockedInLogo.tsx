@@ -55,16 +55,12 @@ export const LockedInLogo: React.FC<LockedInLogoProps> = ({
           fill="none"
         />
 
-        {/* 3. SINGLE CLOCK HAND (Soft Sage) */}
-        <motion.line
-          x1="32"
-          y1="37"
-          x2="32"
-          y2="24"
-          stroke="#ABC8A2"
-          strokeWidth="3.5"
-          strokeLinecap="round"
-          style={{ transformOrigin: '32px 37px' }}
+        {/* 3. SINGLE CLOCK HAND (Soft Sage) - PINNED STRICTLY TO PIVOT (32, 37) */}
+        <motion.g
+          style={{
+            transformOrigin: '32px 37px',
+            transformBox: 'view-box',
+          }}
           animate={
             isLockedIn
               ? { rotate: [0, 360] }
@@ -75,7 +71,27 @@ export const LockedInLogo: React.FC<LockedInLogoProps> = ({
               ? { duration: 60, ease: 'linear', repeat: Infinity }
               : { duration: 0.3 }
           }
-        />
+        >
+          {/* Main Hand extending up from center (32, 37) to (32, 24) */}
+          <line
+            x1="32"
+            y1="37"
+            x2="32"
+            y2="24"
+            stroke="#ABC8A2"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+          />
+          {/* Symmetrical counterbalance ensuring bounding box center is exactly (32, 37) across all browsers */}
+          <line
+            x1="32"
+            y1="37"
+            x2="32"
+            y2="50"
+            stroke="transparent"
+            strokeWidth="3.5"
+          />
+        </motion.g>
 
         {/* Center Pivot Point Dot */}
         <circle cx="32" cy="37" r="2.2" fill="#ABC8A2" />
