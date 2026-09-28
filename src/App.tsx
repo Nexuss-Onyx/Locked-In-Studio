@@ -128,17 +128,20 @@ export default function App() {
       setSelectedProjectId(newProj.id);
     }
     setProjects(StorageService.getProjects());
+    setTasks(StorageService.getTasks());
     setCurrentView('projects');
   };
 
   const handleUpdateProject = (id: string, updates: Partial<Project>) => {
     StorageService.updateProject(id, updates);
     setProjects(StorageService.getProjects());
+    setTasks(StorageService.getTasks());
   };
 
   const handleDeleteProject = (id: string) => {
     StorageService.deleteProject(id);
     setProjects(StorageService.getProjects());
+    setTasks(StorageService.getTasks());
     if (selectedProjectId === id) {
       setSelectedProjectId(null);
     }
@@ -146,11 +149,9 @@ export default function App() {
 
   // Task & Lock-In Handlers
   const handleToggleTaskComplete = (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
-    const newStatus = task.status === 'completed' ? 'todo' : 'completed';
-    StorageService.updateTask(taskId, { status: newStatus });
+    StorageService.toggleTaskStatus(taskId);
     setTasks(StorageService.getTasks());
+    setProjects(StorageService.getProjects());
   };
 
   const handleStartLockInWithTask = (task: Task) => {

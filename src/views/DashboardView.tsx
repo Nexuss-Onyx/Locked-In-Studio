@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Project, Task, FocusSession, ContributionDay } from '../types';
 import { Play, Check, Plus, Upload } from 'lucide-react';
 import { motion } from 'motion/react';
 import { soundManager } from '../services/audio';
 import { LuxeTaskIcon, LuxeStreakIcon, LuxeFocusIcon, LuxeVelocityIcon, LuxeApertureIcon } from '../components/icons/LuxeIcons';
+import { calculateProjectStats } from '../services/markdownProjectParser';
 
 interface DashboardViewProps {
   projects: Project[];
@@ -115,20 +116,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   }, [activity.days]);
 
-  const monthMilestones = [
-    { label: 'OCT', weekOffset: 0 },
-    { label: 'NOV', weekOffset: 4 },
-    { label: 'DEC', weekOffset: 9 },
-    { label: 'JAN', weekOffset: 13 },
-    { label: 'FEB', weekOffset: 17 },
-    { label: 'MAR', weekOffset: 22 },
-    { label: 'APR', weekOffset: 26 },
-    { label: 'MAY', weekOffset: 30 },
-    { label: 'JUN', weekOffset: 35 },
-    { label: 'JUL', weekOffset: 39 },
-    { label: 'AUG', weekOffset: 43 },
-    { label: 'SEP', weekOffset: 48 },
-  ];
+  // Dynamically compute real monthly milestone markers from the actual 52-week dates
+  const monthMarkers = useMemo(() => {
+    const markers: { label: string; weekIndex: number }[] = [];
+    let lastMonth = '';
+    weekCadences.forEach((w) => {
+      if (!w.startDate) return;
+      const d = new Date(w.startDate);
+      const mStr = d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+      if (mStr !== lastMonth) {
+        markers.push({ label: mStr, weekIndex: w.weekIndex });
+        lastMonth = mStr;
+      }
+    });
+    return markers;
+  }, [weekCadences]);
 
   return (
     <div className="p-3.5 sm:p-6 max-w-6xl mx-auto space-y-4 animate-in fade-in duration-200">
@@ -429,7 +431,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             {/* Monthly Roman / Editorial Milestones Axis */}
             <div className="flex justify-between text-[9px] font-sans text-stone-500 pt-2.5 border-t border-white/[0.06] select-none pl-8 pr-1">
-              {monthMilestones.map((m, idx) => (
+              {monthMarkers.map((m, idx) => (
                 <span key={idx} className="tracking-widest">
                   {m.label}
                 </span>
@@ -558,9 +560,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <div className="space-y-2.5">
               {projects.slice(0, 3).map((proj) => {
-                const projTasks = tasks.filter((t) => t.projectId === proj.id);
-                const doneCount = projTasks.filter((t) => t.status === 'completed').length;
-                const pct = projTasks.length > 0 ? Math.round((doneCount / projTasks.length) * 100) : 0;
+                const stats = calculateProjectStats(proj);
+                const pct = stats.completionRate;
+                const doneCount = stats.completedTodosCount;
+                const totalCount = stats.totalTodosCount;
 
                 return (
                   <div
@@ -583,13 +586,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         initial={{ width: 0 }}
                         animate={{ width: `${pct}%` }}
                         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                        className="h-full bg-gradient-to-r from-[#8C7355] to-[#D8C9A3]"
+                        className="h-full bg-gradient-to-r from-[#8C7355] to-[#ABC8A2]"
                       />
                     </div>
 
                     <div className="flex items-center justify-between text-[10px] text-stone-500 mt-1.5 font-sans">
                       <span>{proj.category}</span>
-                      <span className="font-mono">{doneCount}/{projTasks.length}</span>
+                      <span className="font-mono">{doneCount}/{totalCount}</span>
                     </div>
                   </div>
                 );
@@ -611,23 +614,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* 5. Recent Focus Sprints History */}
-      {sessions.length > 0 && (
-        <div className="glass-card rounded-2xl p-4 sm:p-5">
-          <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/[0.06]">
-            <div className="flex items-center gap-2">
-              <LuxeFocusIcon className="w-3.5 h-3.5 text-[#D8C9A3]" />
-              <span className="text-base font-serif font-medium text-[#F7F4EE] tracking-wide">
-                Recent Deep Work Sprints
-              </span>
-            </div>
-            <button
-              onClick={() => onNavigate('lockin')}
-              className="text-xs text-[#D8C9A3] hover:text-[#F7F4EE] transition-colors cursor-pointer font-sans"
-            >
-              Open Studio →
-            </button>
+      <div className="glass-card rounded-2xl p-4 sm:p-5">
+        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <LuxeFocusIcon className="w-3.5 h-3.5 text-[#D8C9A3]" />
+            <span className="text-base font-serif font-medium text-[#F7F4EE] tracking-wide">
+              Recent Deep Work Sprints
+            </span>
           </div>
+          <button
+            onClick={() => onNavigate('lockin')}
+            className="text-xs text-[#ABC8A2] hover:underline transition-colors cursor-pointer font-sans"
+          >
+            Open Studio →
+          </button>
+        </div>
 
+        {sessions.length === 0 ? (
+          <div className="py-6 text-center text-xs text-stone-500 font-sans">
+            No focus sessions logged yet today. Launch Lock-In Studio to log your first deep work sprint.
+          </div>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
             {sessions.slice(0, 3).map((session) => (
               <div
@@ -645,14 +652,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     })}
                   </span>
                 </div>
-                <span className="px-2 py-0.5 rounded-md bg-[#2A241C] text-[#D8C9A3] text-[10px] font-mono font-bold shrink-0">
+                <span className="px-2 py-0.5 rounded-md bg-[#2A241C] text-[#ABC8A2] text-[10px] font-mono font-bold shrink-0">
                   +{session.durationMinutes}m
                 </span>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
     </div>
   );

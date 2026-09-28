@@ -1,5 +1,5 @@
-import { Project, Task, FocusSession, AIChangelogReport, ContributionDay } from '../types';
-import { parseProjectMarkdown } from './markdownProjectParser';
+import { Project, Task, FocusSession, AIChangelogReport, ContributionDay, Priority, TaskStatus, ProjectPhase, TodoStatus } from '../types';
+import { parseProjectMarkdown, parseTimeToMinutes } from './markdownProjectParser';
 import { SupabaseService } from './supabase';
 
 const STORAGE_KEYS = {
@@ -214,133 +214,50 @@ const INITIAL_TASKS: Task[] = [
   },
 ];
 
-// Deterministic pseudo-random helper to guarantee 100% stable, non-volatile demo metrics
-function pseudoRandom(seed: number): number {
-  const x = Math.sin(seed * 9301 + 49297) * 233280;
-  return x - Math.floor(x);
-}
-
-// Calculate realistic annual seasonal activity factor (creative sprints vs seasonal recesses)
-function getSeasonalIntensityFactor(daysAgo: number): number {
-  // daysAgo: 1 (today, Sep 2026) to 364 (Sep 2025)
-  if (daysAgo >= 40 && daysAgo <= 65) {
-    return 0.30; // August European summer retreat / salon recess
-  }
-  if (daysAgo >= 165 && daysAgo <= 185) {
-    return 0.38; // April Easter / spring reflection interlude
-  }
-  if (daysAgo >= 265 && daysAgo <= 285) {
-    return 0.20; // Late December winter holidays & New Year recess
-  }
-  if (daysAgo >= 120 && daysAgo <= 160) {
-    return 0.95; // May Milan / Paris architectural & couture sprint
-  }
-  if (daysAgo >= 195 && daysAgo <= 240) {
-    return 0.88; // February / March Q1 peak execution sprint
-  }
-  if (daysAgo <= 35) {
-    return 0.85; // September Autumn lookbook & salon premiere sprint
-  }
-  return 0.70; // Baseline disciplined steady momentum
-}
-
-// Helper to seed past completed tasks for rich historical 52-week cadence (Deterministic)
-function getSeedPastCompletedTasks(): Task[] {
+/**
+ * Extracts real actionable Tasks from a Project's markdown phases & todos
+ */
+export function extractTasksFromProject(project: Project): Task[] {
   const tasks: Task[] = [];
-  // Anchor to fixed local midnight so timestamps and metrics stay 100% constant across sessions
-  const anchorDate = new Date();
-  anchorDate.setHours(0, 0, 0, 0);
-  const now = anchorDate.getTime();
+  
+  function traverse(phase: ProjectPhase) {
+    for (const todo of phase.todos) {
+      const priority: Priority = 
+        todo.status === 'urgent' ? 'urgent' :
+        todo.status === 'working' ? 'high' : 'medium';
+      
+      const status: TaskStatus = 
+        todo.status === 'completed' ? 'completed' :
+        todo.status === 'working' ? 'in_progress' : 'todo';
 
-  const pastTitles = [
-    { title: 'Selected rare Calacatta marble slabs in Carrara quarries', project: 'proj-2', tags: ['Architecture'] },
-    { title: 'Calibrated Steinway Concert Grand acoustic dampening', project: 'proj-1', tags: ['Acoustics'] },
-    { title: 'Drafted charter for private family office foundation', project: 'proj-3', tags: ['Governance'] },
-    { title: 'Curated private salon preview for Venice Biennale patrons', project: 'proj-1', tags: ['Art'] },
-    { title: 'Commissioned bespoke brass joinery for library pavilion', project: 'proj-2', tags: ['Interior'] },
-    { title: 'Audited rare vintage chronograph provenance records', project: 'proj-3', tags: ['Horology'] },
-    { title: 'Refined handcrafted foil typography for monograph cover', project: 'proj-1', tags: ['Print'] },
-    { title: 'Sequenced haute joaillerie exhibition in Zurich atelier', project: 'proj-1', tags: ['Exhibition'] },
-    { title: 'Reviewed travertine fluting samples for south colonnade', project: 'proj-2', tags: ['Architecture'] },
-    { title: 'Finalized bespoke silk weave specifications in Lyon mill', project: 'proj-1', tags: ['Textiles'] },
-    { title: 'Appraised 1958 vintage Grand Prix chronograph movement', project: 'proj-3', tags: ['Horology'] },
-    { title: 'Curated Autumn couture runway musical score at Abbey Road', project: 'proj-1', tags: ['Audio'] },
-    { title: 'Designed floating cantilever glass loggia for Lake Como estate', project: 'proj-2', tags: ['Architecture'] },
-    { title: 'Reviewed private placement memorandum for timepiece fund', project: 'proj-3', tags: ['M&A'] },
-  ];
+      const tagLabel = phase.title ? phase.title.replace(/^#+\s*/, '').replace(/^Phase\s+\w+:\s*/, '').trim() : '';
 
-  // Distribute across the full 52 weeks (364 days) with deterministic seasonal topography
-  for (let d = 1; d <= 360; d++) {
-    const dayOfWeek = (d % 7);
-    const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
-    const seasonFactor = getSeasonalIntensityFactor(d);
-    const rnd = pseudoRandom(d * 17);
-    const threshold = (isWeekend ? 0.28 : 0.82) * seasonFactor;
-
-    if (rnd < threshold) {
-      const itemsCount = seasonFactor < 0.35 ? 1 : Math.floor(pseudoRandom(d * 31) * 3) + 1;
-      for (let i = 0; i < itemsCount; i++) {
-        const item = pastTitles[(d + i * 3) % pastTitles.length];
-        const pastDate = new Date(now - d * 24 * 3600 * 1000 + (i * 2 + 10) * 3600 * 1000).toISOString();
-        tasks.push({
-          id: `seed-past-${d}-${i}`,
-          title: item.title,
-          projectId: item.project,
-          deadline: pastDate,
-          priority: (i % 2 === 0 ? 'high' : 'medium') as any,
-          status: 'completed',
-          completedAt: pastDate,
-          focusMinutesLogged: Math.round((30 + pseudoRandom(d * 47 + i) * 35) * seasonFactor),
-          tags: item.tags,
-          subtasks: [],
-          createdAt: new Date(now - (d + 2) * 24 * 3600 * 1000).toISOString(),
-        });
-      }
+      tasks.push({
+        id: todo.id,
+        title: todo.title,
+        projectId: project.id,
+        deadline: project.targetDeadline || new Date(new Date(project.createdAt).getTime() + 7 * 24 * 3600 * 1000).toISOString(),
+        priority,
+        status,
+        estimatedMinutes: todo.estimatedMinutes || (todo.estimatedTime ? parseTimeToMinutes(todo.estimatedTime) : 30),
+        completedAt: todo.status === 'completed' ? (todo.completedAt || project.createdAt) : undefined,
+        tags: [project.category || 'Workspace', tagLabel].filter(Boolean),
+        subtasks: [],
+        createdAt: project.createdAt,
+        focusMinutesLogged: 0,
+      });
     }
+
+    for (const sub of phase.subphases || []) {
+      traverse(sub);
+    }
+  }
+
+  for (const root of project.phases || []) {
+    traverse(root);
   }
 
   return tasks;
-}
-
-function getSeedPastSessions(): FocusSession[] {
-  const sessions: FocusSession[] = [];
-  const anchorDate = new Date();
-  anchorDate.setHours(0, 0, 0, 0);
-  const now = anchorDate.getTime();
-
-  const sessionThemes = [
-    'Lake Como Villa Elevations & Cantilevers',
-    'Haute Couture Textile Curation & Silks',
-    'Swiss Horology M&A Term Sheet Audit',
-    'Abbey Road Acoustic Lacquer Mastering',
-    'High-Jewelry Brand Manifesto Composition',
-    'Carrara Marble Fluting & Spec Approvals',
-    'Private Foundation Governance Review',
-  ];
-
-  for (let d = 1; d <= 360; d++) {
-    const dayOfWeek = (d % 7);
-    const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
-    const seasonFactor = getSeasonalIntensityFactor(d);
-    const rnd = pseudoRandom(d * 23);
-    const sessionChance = (isWeekend ? 0.32 : 0.85) * seasonFactor;
-
-    if (rnd < sessionChance) {
-      const sessionCount = seasonFactor < 0.35 ? 1 : Math.floor(pseudoRandom(d * 41) * 3) + 1;
-      for (let s = 0; s < sessionCount; s++) {
-        const duration = Math.round((30 + pseudoRandom(d * 53 + s) * 45) * (0.6 + seasonFactor * 0.4));
-        const pastDate = new Date(now - d * 24 * 3600 * 1000 + (s * 3 + 9) * 3600 * 1000).toISOString();
-        sessions.push({
-          id: `fs-seed-${d}-${s}`,
-          taskTitle: sessionThemes[(d + s) % sessionThemes.length],
-          durationMinutes: duration,
-          completedAt: pastDate,
-        });
-      }
-    }
-  }
-
-  return sessions;
 }
 
 export const StorageService = {
@@ -403,23 +320,50 @@ export const StorageService = {
   // Tasks
   getTasks(): Task[] {
     const raw = localStorage.getItem(STORAGE_KEYS.TASKS);
-    if (!raw) {
-      const allSeed = [...INITIAL_TASKS, ...getSeedPastCompletedTasks()];
-      localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(allSeed));
-      return allSeed;
-    }
-    try {
-      const parsed = JSON.parse(raw);
-      // Auto-migrate legacy websocket/engineering seed tasks or incomplete past seed (< 50 tasks)
-      if (Array.isArray(parsed) && (parsed.length < 50 || parsed.some((t: Task) => t.title.includes('websocket') || t.title.includes('order-matching') || t.title.includes('edge canary')))) {
-        const allSeed = [...INITIAL_TASKS, ...getSeedPastCompletedTasks()];
-        localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(allSeed));
-        return allSeed;
+    let storedTasks: Task[] = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          // Purge synthetic seed tasks
+          storedTasks = parsed.filter(t => !t.id.startsWith('seed-past-'));
+        }
+      } catch {
+        storedTasks = [];
       }
-      return parsed;
-    } catch {
-      return INITIAL_TASKS;
     }
+
+    // Extract all real tasks from all active projects
+    const projects = this.getProjects();
+    const projectTasksMap = new Map<string, Task>();
+    
+    // 1. Populate all tasks defined in project phases
+    for (const proj of projects) {
+      const tasksInProj = extractTasksFromProject(proj);
+      for (const t of tasksInProj) {
+        projectTasksMap.set(t.id, t);
+      }
+    }
+
+    // 2. Merge stored task state (status overrides, completedAt, focus logs)
+    for (const stored of storedTasks) {
+      if (projectTasksMap.has(stored.id)) {
+        const projTask = projectTasksMap.get(stored.id)!;
+        projectTasksMap.set(stored.id, {
+          ...projTask,
+          status: stored.status,
+          completedAt: stored.completedAt,
+          focusMinutesLogged: stored.focusMinutesLogged || projTask.focusMinutesLogged,
+        });
+      } else if (!stored.id.startsWith('seed-past-')) {
+        // Standalone user-created task
+        projectTasksMap.set(stored.id, stored);
+      }
+    }
+
+    const allRealTasks = Array.from(projectTasksMap.values());
+    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(allRealTasks));
+    return allRealTasks;
   },
 
   saveTasks(tasks: Task[]) {
@@ -466,8 +410,47 @@ export const StorageService = {
       ...updates,
       ...(completedAt !== undefined ? { completedAt } : {}),
     };
+
+    // If task belongs to a project, update the corresponding todo in project's phases
+    if (tasks[idx].projectId) {
+      const projects = this.getProjects();
+      const proj = projects.find(p => p.id === tasks[idx].projectId);
+      if (proj && updates.status) {
+        const targetTodoStatus: TodoStatus = updates.status === 'completed' ? 'completed' : 'normal';
+        const updateTodos = (phases: ProjectPhase[]): ProjectPhase[] => {
+          return phases.map(ph => {
+            const updatedTodos = ph.todos.map(td => {
+              if (td.id === id) {
+                return {
+                  ...td,
+                  status: targetTodoStatus,
+                  completedAt,
+                };
+              }
+              return td;
+            });
+            return {
+              ...ph,
+              todos: updatedTodos,
+              subphases: updateTodos(ph.subphases || []),
+            };
+          });
+        };
+        proj.phases = updateTodos(proj.phases);
+        this.saveProjects(projects);
+      }
+    }
+
     this.saveTasks(tasks);
     return tasks[idx];
+  },
+
+  toggleTaskStatus(id: string): Task | null {
+    const tasks = this.getTasks();
+    const task = tasks.find(t => t.id === id);
+    if (!task) return null;
+    const nextStatus: TaskStatus = task.status === 'completed' ? 'todo' : 'completed';
+    return this.updateTask(id, { status: nextStatus });
   },
 
   deleteTask(id: string) {
@@ -499,21 +482,19 @@ export const StorageService = {
   getFocusSessions(): FocusSession[] {
     const raw = localStorage.getItem(STORAGE_KEYS.SESSIONS);
     if (!raw) {
-      const seedSessions = getSeedPastSessions();
-      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(seedSessions));
-      return seedSessions;
+      return [];
     }
     try {
       const parsed = JSON.parse(raw);
-      // Auto-migrate if fewer than 10 sessions exist so full 52-week cadence is always populated
-      if (Array.isArray(parsed) && parsed.length < 10) {
-        const seedSessions = getSeedPastSessions();
-        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(seedSessions));
-        return seedSessions;
+      if (Array.isArray(parsed)) {
+        // Purge synthetic seed sessions
+        const realSessions = parsed.filter(s => !s.id.startsWith('fs-seed-'));
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(realSessions));
+        return realSessions;
       }
-      return parsed;
+      return [];
     } catch {
-      return getSeedPastSessions();
+      return [];
     }
   },
 
@@ -599,7 +580,7 @@ export const StorageService = {
       });
     }
 
-    // Calculate Current Streak and Longest Streak
+    // Calculate Real Current Streak and Longest Streak
     let currentStreak = 0;
     let longestStreak = 0;
     let tempStreak = 0;
@@ -610,24 +591,20 @@ export const StorageService = {
     yesterday.setDate(today.getDate() - 1);
     const yesterdayKey = yesterday.toISOString().split('T')[0];
 
-    // Check if active today or yesterday to continue streak
     const hasActivityToday = (activityMap[todayKey]?.count || 0) > 0 || (activityMap[todayKey]?.focusMinutes || 0) > 0;
     const hasActivityYesterday = (activityMap[yesterdayKey]?.count || 0) > 0 || (activityMap[yesterdayKey]?.focusMinutes || 0) > 0;
 
-    // Backward count for current streak
-    let cursor = new Date(today);
-    if (!hasActivityToday && hasActivityYesterday) {
-      cursor = yesterday;
-    }
-
-    while (true) {
-      const k = cursor.toISOString().split('T')[0];
-      const act = activityMap[k];
-      if (act && (act.count > 0 || act.focusMinutes > 0)) {
-        currentStreak++;
-        cursor.setDate(cursor.getDate() - 1);
-      } else {
-        break;
+    if (hasActivityToday || hasActivityYesterday) {
+      let cursor = hasActivityToday ? new Date(today) : yesterday;
+      while (true) {
+        const k = cursor.toISOString().split('T')[0];
+        const act = activityMap[k];
+        if (act && (act.count > 0 || act.focusMinutes > 0)) {
+          currentStreak++;
+          cursor.setDate(cursor.getDate() - 1);
+        } else {
+          break;
+        }
       }
     }
 
@@ -649,8 +626,8 @@ export const StorageService = {
 
     return {
       days,
-      currentStreak: Math.max(currentStreak, 14), // seed baseline or real
-      longestStreak: Math.max(longestStreak, 28),
+      currentStreak,
+      longestStreak,
       totalTasksCompleted,
       totalFocusHours,
     };
