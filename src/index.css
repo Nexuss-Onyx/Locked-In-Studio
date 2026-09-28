@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-brand: 'Cinzel', serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    background-color: #0B0A09;
+    color: #F7F4EE;
+  }
+}
+
+.font-serif {
+  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif !important;
+}
+
+.font-brand {
+  font-family: 'Cinzel', serif !important;
+  letter-spacing: 0.14em;
+}
+
+.font-mono, .tabular-nums {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Luxury warm obsidian glass panels with hairline brass/gold accents */
+.glass-panel {
+  background: rgba(18, 16, 14, 0.75);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(212, 175, 55, 0.12);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 245, 220, 0.06);
+}
+
+.glass-card {
+  background: rgba(22, 19, 16, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  background: rgba(30, 26, 21, 0.75);
+  border-color: rgba(212, 175, 55, 0.28);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 245, 220, 0.09);
+}
+
+.glass-button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: #E6E0D8;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-button:hover {
+  background: rgba(212, 175, 55, 0.12);
+  border-color: rgba(212, 175, 55, 0.3);
+  color: #FFFFFF;
+}
+
+.glass-button-primary {
+  background: linear-gradient(135deg, #E5C158 0%, #C5A059 50%, #A38044 100%);
+  color: #120F0A;
+  font-weight: 600;
+  border: 1px solid rgba(255, 245, 220, 0.3);
+  box-shadow: 0 4px 18px rgba(197, 160, 89, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-button-primary:hover {
+  background: linear-gradient(135deg, #F3D270 0%, #D4AF37 50%, #B8924E 100%);
+  box-shadow: 0 6px 26px rgba(212, 175, 55, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transform: translateY(-0.5px);
+}
+
+.glass-button-primary:active {
+  transform: translateY(0.5px);
+  box-shadow: 0 2px 8px rgba(197, 160, 89, 0.25);
+}
+
+/* Custom subtle luxury scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.4);
+}

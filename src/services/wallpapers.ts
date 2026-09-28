@@ -1,0 +1,148 @@
+import { WallpaperOption } from '../types';
+
+import monestraGlow from '../assets/images/monestra_emerald_glow_1790498194804.jpg';
+import obsidianImg from '../assets/images/wallpaper_obsidian_minimal_1790497625097.jpg';
+import rainImg from '../assets/images/wallpaper_midnight_rain_1790497644110.jpg';
+
+export const WALLPAPERS: WallpaperOption[] = [
+  {
+    id: 'wallpaper-lock-default',
+    name: 'Default Lock Sunset (default.jpg)',
+    type: 'image',
+    value: '/lock/default.jpg',
+    thumbnail: '/lock/default.jpg',
+  },
+  {
+    id: 'wallpaper-lock-1',
+    name: 'Lock Sunset Horizon I',
+    type: 'image',
+    value: '/lock/25849d25b5cc4f37be93f33d935d26a9.jpg',
+    thumbnail: '/lock/25849d25b5cc4f37be93f33d935d26a9.jpg',
+  },
+  {
+    id: 'wallpaper-lock-2',
+    name: 'Lock Evening Twilight II',
+    type: 'image',
+    value: '/lock/4db2e2e9e0d5af8e3a368d753acc3bdb.jpg',
+    thumbnail: '/lock/4db2e2e9e0d5af8e3a368d753acc3bdb.jpg',
+  },
+  {
+    id: 'wallpaper-lock-3',
+    name: 'Lock Autumn Golden III',
+    type: 'image',
+    value: '/lock/65c92f0ae1654aa54b0b24558c01689e.jpg',
+    thumbnail: '/lock/65c92f0ae1654aa54b0b24558c01689e.jpg',
+  },
+  {
+    id: 'wallpaper-lock-4',
+    name: 'Lock Forest Solitude IV',
+    type: 'image',
+    value: '/lock/7853daafd71d4e1e8af7ad602907a9ac.jpg',
+    thumbnail: '/lock/7853daafd71d4e1e8af7ad602907a9ac.jpg',
+  },
+  {
+    id: 'wallpaper-lock-5',
+    name: 'Lock Deep Amber V',
+    type: 'image',
+    value: '/lock/7ff77705195bdee5652729628993f24f.jpg',
+    thumbnail: '/lock/7ff77705195bdee5652729628993f24f.jpg',
+  },
+  {
+    id: 'wallpaper-lock-6',
+    name: 'Lock Kyoto Twilight VI',
+    type: 'image',
+    value: '/lock/b438be0f97b6fb29c1625b3f0ccc873a.jpg',
+    thumbnail: '/lock/b438be0f97b6fb29c1625b3f0ccc873a.jpg',
+  },
+  {
+    id: 'wallpaper-lock-7',
+    name: 'Lock Bamboo Glow VII',
+    type: 'image',
+    value: '/lock/ca29ccf03ad146945c14aac509847fbe.jpg',
+    thumbnail: '/lock/ca29ccf03ad146945c14aac509847fbe.jpg',
+  },
+  {
+    id: 'wallpaper-lock-8',
+    name: 'Lock Mountain Dusk VIII',
+    type: 'image',
+    value: '/lock/cb6400a271ee318c459d233309e25e55.jpg',
+    thumbnail: '/lock/cb6400a271ee318c459d233309e25e55.jpg',
+  },
+  {
+    id: 'wallpaper-lock-9',
+    name: 'Lock Zen Garden IX',
+    type: 'image',
+    value: '/lock/d9b29715b473dd0a5b37e1bc9929907b.jpg',
+    thumbnail: '/lock/d9b29715b473dd0a5b37e1bc9929907b.jpg',
+  },
+  {
+    id: 'wallpaper-lock-10',
+    name: 'Lock Cyberpunk Alley X',
+    type: 'image',
+    value: '/lock/dfc01ebc11b2fbb6dc826f939a71198e.jpg',
+    thumbnail: '/lock/dfc01ebc11b2fbb6dc826f939a71198e.jpg',
+  },
+  {
+    id: 'wallpaper-lock-11',
+    name: 'Lock Cozy Cafe XI',
+    type: 'image',
+    value: '/lock/e472e8724ed8620d772e79ed0c03e118.jpg',
+    thumbnail: '/lock/e472e8724ed8620d772e79ed0c03e118.jpg',
+  },
+  {
+    id: 'wallpaper-lock-12',
+    name: 'Lock Rain Window XII',
+    type: 'image',
+    value: '/lock/ebe5d319b4eca77924120fb5e7a091ee.jpg',
+    thumbnail: '/lock/ebe5d319b4eca77924120fb5e7a091ee.jpg',
+  },
+  {
+    id: 'wallpaper-lock-13',
+    name: 'Lock Alpine Mist XIII',
+    type: 'image',
+    value: '/lock/f60a473f31ba4693aab7a8235c253c40.jpg',
+    thumbnail: '/lock/f60a473f31ba4693aab7a8235c253c40.jpg',
+  },
+  {
+    id: 'wallpaper-lock-14',
+    name: 'Lock Golden Hour XIV',
+    type: 'image',
+    value: '/lock/fad01d316c00e831592fd54e91431d9c.jpg',
+    thumbnail: '/lock/fad01d316c00e831592fd54e91431d9c.jpg',
+  },
+  {
+    id: 'wallpaper-monestra',
+    name: 'Monestra Emerald Atmosphere',
+    type: 'image',
+    value: monestraGlow,
+    thumbnail: monestraGlow,
+  },
+  {
+    id: 'wallpaper-obsidian',
+    name: 'Obsidian Architectural',
+    type: 'image',
+    value: obsidianImg,
+    thumbnail: obsidianImg,
+  },
+  {
+    id: 'wallpaper-rain',
+    name: 'Midnight Rain Glass',
+    type: 'image',
+    value: rainImg,
+    thumbnail: rainImg,
+  },
+  {
+    id: 'wallpaper-golden-dusk',
+    name: 'Warm Golden Glow Gradient',
+    type: 'gradient',
+    value: 'radial-gradient(ellipse at 50% 20%, #B86520 0%, #522709 50%, #170A02 100%)',
+    thumbnail: '',
+  },
+  {
+    id: 'wallpaper-pitch',
+    name: 'Void Minimal Obsidian',
+    type: 'minimal',
+    value: '#050706',
+    thumbnail: '',
+  },
+];

@@ -1,0 +1,6 @@
+{
+  "name": "Locked-in Studio",
+  "description": "Luxurious, minimalist project and task manager with deep work Lock-In timer, AI progress changelog, and activity contribution graph.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
