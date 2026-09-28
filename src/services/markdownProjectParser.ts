@@ -299,38 +299,10 @@ export function parseProjectMarkdown(
     }
   }
 
-  // Ensure at least one phase exists with todos if empty
-  if (rootPhases.length === 0) {
-    rootPhases.push({
-      id: `phase-${Date.now()}-1`,
-      title: 'Phase 1: Architecture & Conception',
-      level: 1,
-      timeBudget: '8h',
-      timeBudgetMinutes: 480,
-      todos: [
-        {
-          id: `todo-${Date.now()}-1`,
-          title: 'Review elevations and design criteria',
-          status: 'urgent',
-          estimatedTime: '2h',
-          estimatedMinutes: 120,
-        },
-        {
-          id: `todo-${Date.now()}-2`,
-          title: 'Specify materials and travertine finishes',
-          status: 'working',
-          estimatedTime: '4h',
-          estimatedMinutes: 240,
-        },
-      ],
-      subphases: [],
-    });
-  }
-
   return {
     name: projectName,
-    description: projectDescription || 'High-craft architectural and creative direction masterplan.',
-    category: projectCategory,
+    description: projectDescription || '',
+    category: projectCategory || '',
     phases: rootPhases,
     estimatedTime: projectEstimatedTime,
     estimatedMinutes: projectEstimatedMinutes,

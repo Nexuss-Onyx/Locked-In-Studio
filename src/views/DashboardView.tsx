@@ -558,46 +558,52 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button>
             </div>
 
-            <div className="space-y-2.5">
-              {projects.slice(0, 3).map((proj) => {
-                const stats = calculateProjectStats(proj);
-                const pct = stats.completionRate;
-                const doneCount = stats.completedTodosCount;
-                const totalCount = stats.totalTodosCount;
+            {projects.length === 0 ? (
+              <div className="py-6 text-center text-xs text-stone-500 font-sans">
+                No active workspaces yet. Import a Markdown plan or create a new project.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {projects.slice(0, 3).map((proj) => {
+                  const stats = calculateProjectStats(proj);
+                  const pct = stats.completionRate;
+                  const doneCount = stats.completedTodosCount;
+                  const totalCount = stats.totalTodosCount;
 
-                return (
-                  <div
-                    key={proj.id}
-                    onClick={() => {
-                      onSelectProject(proj.id);
-                      onNavigate('projects');
-                    }}
-                    className="p-2.5 bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.04] hover:border-white/[0.08] rounded-xl cursor-pointer transition-all duration-150"
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium text-white/90 truncate pr-2">
-                        {proj.name}
-                      </span>
-                      <span className="text-[11px] font-serif italic text-stone-400 shrink-0">{pct}%</span>
-                    </div>
+                  return (
+                    <div
+                      key={proj.id}
+                      onClick={() => {
+                        onSelectProject(proj.id);
+                        onNavigate('projects');
+                      }}
+                      className="p-2.5 bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.04] hover:border-white/[0.08] rounded-xl cursor-pointer transition-all duration-150"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-medium text-white/90 truncate pr-2">
+                          {proj.name}
+                        </span>
+                        <span className="text-[11px] font-serif italic text-stone-400 shrink-0">{pct}%</span>
+                      </div>
 
-                    <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                        className="h-full bg-gradient-to-r from-[#8C7355] to-[#ABC8A2]"
-                      />
-                    </div>
+                      <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                          className="h-full bg-gradient-to-r from-[#8C7355] to-[#ABC8A2]"
+                        />
+                      </div>
 
-                    <div className="flex items-center justify-between text-[10px] text-stone-500 mt-1.5 font-sans">
-                      <span>{proj.category}</span>
-                      <span className="font-mono">{doneCount}/{totalCount}</span>
+                      <div className="flex items-center justify-between text-[10px] text-stone-500 mt-1.5 font-sans">
+                        <span>{proj.category}</span>
+                        <span className="font-mono">{doneCount}/{totalCount}</span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <button

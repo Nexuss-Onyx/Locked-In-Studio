@@ -1,5 +1,5 @@
 import { Project, Task, FocusSession, AIChangelogReport, ContributionDay, Priority, TaskStatus, ProjectPhase, TodoStatus } from '../types';
-import { parseProjectMarkdown, parseTimeToMinutes } from './markdownProjectParser';
+import { parseTimeToMinutes } from './markdownProjectParser';
 import { SupabaseService } from './supabase';
 
 const STORAGE_KEYS = {
@@ -11,208 +11,6 @@ const STORAGE_KEYS = {
   WALLPAPER_ROTATIONS: 'aura_wallpaper_rotations_v1',
   CUSTOM_WALLPAPERS: 'aura_custom_wallpapers_v1',
 };
-
-const RAW_PROJECT_1_MD = `---
-name: Maison & Haute Couture Lookbook
-category: Creative Direction
-description: Bespoke runway visual direction and textile curation for Paris Fashion Week.
-EST: 64:00:00
----
-
-[ 16h ] - # Phase One: Autumn Collection Narrative & Mood Synthesis
-- [ X ] Archive research into 1920s Paul Poiret drapery techniques [ 4h ]
-- [ X ] Curate seasonal chromatic palette: Umber, Alabaster, Aged Brass [ 3h ]
-- [ ! ] Compose creative director's seasonal manifesto [ 5h ]
-
-[ 28h ] - ## Subphase 1.1: Bespoke Silk & Jacquard Weave Development
-- [ X ] Commission heritage silk jacquard weaves in Lyon atelier [ 8h ]
-- [ ~ ] Inspect botanical pigment dye bath strike-offs [ 6h ]
-- [   ] Review hand-embroidered metallic thread sample plates [ 4h ]
-
-[ 20h ] - # Phase Two: Paris Salon Runway Scenography
-- [ ~ ] Architectural lighting grid design at Grand Palais salon [ 6h ]
-- [ ! ] Soundtrack composition mastering at Abbey Road Studios [ 8h ]
-- [   ] Casting directional models and garment sequencing [ 4h ]
-`;
-
-const RAW_PROJECT_2_MD = `---
-name: Villa Bellagio Architectural Studio
-category: Architecture & Heritage
-description: Lake Como private residential estate masterplan and travertine stone specifications.
-EST: 68:00:00
----
-
-[ 14h ] - # Phase One: Site Topography & Spatial Masterplan
-- [ X ] Aerial drone lidar scan of Lake Como promontory [ 2h ]
-- [ X ] Calibrate geothermal ground-source borehole depth [ 3h ]
-- [ ! ] Finalize south loggia travertine fluting specifications [ 4h ]
-
-[ 18h ] - ## Subphase 1.1: Cantilevered Pavilion & Glass Portico
-- [ ~ ] Structural finite element analysis of 14m steel span [ 6h ]
-- [   ] Acoustic isolation modeling for grand salon [ 4h ]
-
-[ 12h ] - ### Subphase 1.1.1: Horizon Pool Hydraulic Infinity Weir
-- [ ! ] Specify Italian Carrara vein-matched coping slabs [ 5h ]
-- [   ] Integrate low-voltage warm brass linear lighting recesses [ 3h ]
-
-[ 24h ] - # Phase Two: Interior Joinery & Material Provenance
-- [ X ] Commission Florentine hand-rubbed brass hardware suite [ 6h ]
-- [ ~ ] Select book-matched French walnut veneer flitches [ 8h ]
-- [   ] Acoustic felt and linen acoustic wall paneling mockups [ 4h ]
-`;
-
-const RAW_PROJECT_3_MD = `---
-name: Sovereign Heritage Capital
-category: Private Equity
-description: Private equity syndicate for vintage horology and rare timepiece acquisitions.
-EST: 36:00:00
----
-
-[ 22h ] - # Phase One: Horology & Heritage Portfolio M&A
-- [ X ] Complete buy-side due diligence for Geneva watchmaker [ 8h ]
-- [ ! ] Audit rare vintage chronograph provenance records [ 6h ]
-- [ ~ ] Structure cross-border IP licensing agreements [ 8h ]
-
-[ 14h ] - ## Subphase 1.1: Private Placement Memorandum
-- [ X ] Draft multi-family office investment charter [ 6h ]
-- [   ] Finalize capital allocation governance framework [ 5h ]
-`;
-
-const parsedP1 = parseProjectMarkdown(RAW_PROJECT_1_MD);
-const parsedP2 = parseProjectMarkdown(RAW_PROJECT_2_MD);
-const parsedP3 = parseProjectMarkdown(RAW_PROJECT_3_MD);
-
-// Curated luxury creative, architectural, and executive workspaces
-const INITIAL_PROJECTS: Project[] = [
-  {
-    id: 'proj-1',
-    name: parsedP1.name,
-    description: parsedP1.description,
-    color: '#ABC8A2', // Soft Sage
-    icon: 'Sparkles',
-    category: parsedP1.category,
-    targetDeadline: '2026-10-15T18:00',
-    createdAt: '2026-09-01T10:00:00Z',
-    rawMarkdown: RAW_PROJECT_1_MD,
-    phases: parsedP1.phases,
-    estimatedTime: parsedP1.estimatedTime,
-    estimatedMinutes: parsedP1.estimatedMinutes,
-  },
-  {
-    id: 'proj-2',
-    name: parsedP2.name,
-    description: parsedP2.description,
-    color: '#8EA985', // Sage Accent
-    icon: 'Layers',
-    category: parsedP2.category,
-    targetDeadline: '2026-10-05T12:00',
-    createdAt: '2026-09-10T14:30:00Z',
-    rawMarkdown: RAW_PROJECT_2_MD,
-    phases: parsedP2.phases,
-    estimatedTime: parsedP2.estimatedTime,
-    estimatedMinutes: parsedP2.estimatedMinutes,
-  },
-  {
-    id: 'proj-3',
-    name: parsedP3.name,
-    description: parsedP3.description,
-    color: '#73916D', // Deep Sage
-    icon: 'Cpu',
-    category: parsedP3.category,
-    targetDeadline: '2026-10-20T20:00',
-    createdAt: '2026-09-15T09:00:00Z',
-    rawMarkdown: RAW_PROJECT_3_MD,
-    phases: parsedP3.phases,
-    estimatedTime: parsedP3.estimatedTime,
-    estimatedMinutes: parsedP3.estimatedMinutes,
-  },
-];
-
-const INITIAL_TASKS: Task[] = [
-  {
-    id: 'task-1',
-    title: 'Review architectural elevations and travertine finishes for Lake Como pavilion',
-    description: 'Examine cantilevers, limestone fluting, and natural light penetration for the south-facing terrace.',
-    projectId: 'proj-2',
-    deadline: new Date(Date.now() + 4 * 3600 * 1000).toISOString(), // today in 4 hours
-    priority: 'urgent',
-    status: 'in_progress',
-    estimatedMinutes: 45,
-    focusMinutesLogged: 30,
-    tags: ['Architecture', 'Couture', 'Lake Como'],
-    subtasks: [
-      { id: 'st-1', title: 'Verify structural load margins on glass cantilever', completed: true },
-      { id: 'st-2', title: 'Approve honed Roman travertine sample palette', completed: true },
-      { id: 'st-3', title: 'Finalize twilight lighting scheme with Milan consultants', completed: false },
-    ],
-    createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'task-2',
-    title: 'Curate autumn haute couture textile palette and silk jacquard swatches',
-    description: 'Select heavy mulberry silk weaves, brushed alpaca tones, and antique gold hardware.',
-    projectId: 'proj-1',
-    deadline: new Date(Date.now() + 18 * 3600 * 1000).toISOString(), // tomorrow morning
-    priority: 'high',
-    status: 'todo',
-    estimatedMinutes: 60,
-    focusMinutesLogged: 15,
-    tags: ['Editorial', 'Textiles', 'Atelier'],
-    subtasks: [
-      { id: 'st-4', title: 'Review swatch dye consistency under 5000K studio daylight', completed: true },
-      { id: 'st-5', title: 'Sequence 24 lookbook plates for publisher review', completed: false },
-    ],
-    createdAt: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'task-3',
-    title: 'Finalize term sheet for heritage Swiss horology manufacture acquisition',
-    description: 'Audit master watchmaker apprenticeship pipeline and historical patent archives.',
-    projectId: 'proj-3',
-    deadline: new Date(Date.now() + 48 * 3600 * 1000).toISOString(), // 2 days out
-    priority: 'medium',
-    status: 'todo',
-    estimatedMinutes: 45,
-    tags: ['M&A', 'Horology', 'Due Diligence'],
-    subtasks: [
-      { id: 'st-6', title: 'Review IP registry in Geneva and Neuchâtel', completed: false },
-    ],
-    createdAt: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'task-4',
-    title: 'Master acoustic lacquer pressing for chamber orchestra vinyl release',
-    description: 'Precision 45 RPM half-speed mastering at Abbey Road for limited collector edition.',
-    projectId: 'proj-1',
-    deadline: new Date(Date.now() - 12 * 3600 * 1000).toISOString(), // completed earlier
-    priority: 'high',
-    status: 'completed',
-    completedAt: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-    estimatedMinutes: 30,
-    focusMinutesLogged: 45,
-    tags: ['Acoustics', 'Vinyl', 'Mastering'],
-    subtasks: [
-      { id: 'st-7', title: 'Inspect test acetate grooves under microscope', completed: true },
-      { id: 'st-8', title: 'Approve dynamic headroom on string crescendos', completed: true },
-    ],
-    createdAt: new Date(Date.now() - 72 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'task-5',
-    title: 'Author brand manifesto and typography guidelines for high-jewelry salon',
-    description: 'Articulate maison heritage, diamond provenance ethics, and bespoke client rituals.',
-    projectId: 'proj-1',
-    deadline: new Date(Date.now() - 30 * 3600 * 1000).toISOString(),
-    priority: 'medium',
-    status: 'completed',
-    completedAt: new Date(Date.now() - 22 * 3600 * 1000).toISOString(),
-    estimatedMinutes: 40,
-    focusMinutesLogged: 40,
-    tags: ['Manifesto', 'Branding', 'Jewelry'],
-    subtasks: [],
-    createdAt: new Date(Date.now() - 96 * 3600 * 1000).toISOString(),
-  },
-];
 
 /**
  * Extracts real actionable Tasks from a Project's markdown phases & todos
@@ -265,19 +63,24 @@ export const StorageService = {
   getProjects(): Project[] {
     const raw = localStorage.getItem(STORAGE_KEYS.PROJECTS);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(INITIAL_PROJECTS));
-      return INITIAL_PROJECTS;
+      return [];
     }
     try {
       const parsed = JSON.parse(raw);
-      // Auto-migrate legacy engineering seed projects
-      if (Array.isArray(parsed) && parsed.some((p: Project) => p.name.includes('Monestra Capital') || p.name.includes('Core Infrastructure Engine'))) {
-        localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(INITIAL_PROJECTS));
-        return INITIAL_PROJECTS;
+      if (Array.isArray(parsed)) {
+        // Filter out any legacy seed projects
+        const clean = parsed.filter((p: Project) => 
+          !p.name.includes('Maison & Haute Couture') &&
+          !p.name.includes('Villa Bellagio') &&
+          !p.name.includes('Sovereign Heritage') &&
+          !p.name.includes('Monestra Capital') &&
+          !p.name.includes('Core Infrastructure')
+        );
+        return clean;
       }
-      return parsed;
+      return [];
     } catch {
-      return INITIAL_PROJECTS;
+      return [];
     }
   },
 
