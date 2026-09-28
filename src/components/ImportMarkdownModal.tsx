@@ -13,12 +13,14 @@ import {
   ArrowLeft, 
   Code2, 
   Eye, 
-  Clock, 
   Layers,
-  Sparkles,
-  RotateCcw
+  AlertCircle
 } from 'lucide-react';
-import { parseProjectMarkdown, calculateProjectStats, formatMinutesToHHMMSS } from '../services/markdownProjectParser';
+import { 
+  parseProjectMarkdown, 
+  calculateProjectStats,
+  serializeProjectToMarkdown 
+} from '../services/markdownProjectParser';
 import { Project } from '../types';
 import { soundManager } from '../services/audio';
 
@@ -44,8 +46,7 @@ interface ImportMarkdownModalProps {
 const SAMPLE_TEMPLATES = [
   {
     name: 'Architecture & Design',
-    fileName: 'Villa Bellagio Masterplan.md',
-    sizeLabel: '4.8 KB',
+    fileName: 'Villa_Bellagio_Masterplan.md',
     content: `---
 name: Villa Bellagio Studio
 category: Architecture & Heritage
@@ -74,8 +75,7 @@ EST: 68:00:00
   },
   {
     name: 'Couture & Fashion',
-    fileName: 'Haute Couture Lookbook.md',
-    sizeLabel: '3.6 KB',
+    fileName: 'Haute_Couture_Lookbook.md',
     content: `---
 name: Maison Haute Couture
 category: Creative Direction
@@ -101,8 +101,7 @@ EST: 64:00:00
   },
   {
     name: 'Vintage Horology',
-    fileName: 'Sovereign Heritage Syndicate.md',
-    sizeLabel: '2.9 KB',
+    fileName: 'Sovereign_Heritage_Syndicate.md',
     content: `---
 name: Sovereign Heritage Capital
 category: Private Equity
@@ -122,7 +121,7 @@ EST: 36:00:00
   },
 ];
 
-// Helper: Segmented LED VU Meter Bar (matches the Roland/audio aesthetic in user mockup)
+// Roland/Matrix LED Segmented Progress Bar (matches reference mockup exactly)
 const SegmentedProgressBar: React.FC<{ progress: number; totalSegments?: number }> = ({ 
   progress, 
   totalSegments = 46 
@@ -136,10 +135,10 @@ const SegmentedProgressBar: React.FC<{ progress: number; totalSegments?: number 
         return (
           <span
             key={i}
-            className={`h-2.5 w-[3.5px] rounded-[1px] transition-colors duration-150 shrink-0 ${
+            className={`h-2.5 w-[3.5px] rounded-[1px] transition-colors duration-100 shrink-0 ${
               isActive 
                 ? 'bg-[#34D399] shadow-[0_0_4px_rgba(52,211,153,0.8)]' 
-                : 'bg-white/[0.1]'
+                : 'bg-white/[0.08]'
             }`}
           />
         );
@@ -158,40 +157,157 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
   // Navigation Stage: 'upload' is primary, then 'editor' on Proceed
   const [stage, setStage] = useState<'upload' | 'editor'>('upload');
   
-  // File upload state
-  const [activeFileName, setActiveFileName] = useState<string>(SAMPLE_TEMPLATES[0].fileName);
-  const [activeFileSize, setActiveFileSize] = useState<string>(SAMPLE_TEMPLATES[0].sizeLabel);
-  const [uploadProgress, setUploadProgress] = useState<number>(100);
-  const [isSimulatingUpload, setIsSimulatingUpload] = useState<boolean>(false);
+  // Real Upload State (starts empty with no synthetic file pre-loaded)
+  const [activeFileName, setActiveFileName] = useState<string>('');
+  const [activeFileSize, setActiveFileSize] = useState<string>('');
+  const [fileExtension, setFileExtension] = useState<string>('MD');
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'reading' | 'completed' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
-  // Markdown editor state
-  const [markdownText, setMarkdownText] = useState<string>(SAMPLE_TEMPLATES[0].content);
+  // Markdown Content & Editor State
+  const [markdownText, setMarkdownText] = useState<string>('');
   const [targetMode, setTargetMode] = useState<'new' | 'existing'>('new');
   const [selectedProjectId, setSelectedProjectId] = useState<string>(defaultProjectId || existingProjects[0]?.id || '');
   const [editorTab, setEditorTab] = useState<'editor' | 'preview' | 'syntax'>('editor');
   
-  // Toast state
+  // Toast State
   const [showToast, setShowToast] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset state when opening
+  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
+      setShowToast(false);
+      setErrorMessage(null);
+
       if (defaultProjectId) {
+        // Syncing an existing project: load its current markdown and jump straight to editor
         setTargetMode('existing');
         setSelectedProjectId(defaultProjectId);
-        // If syncing existing project with no new file, start directly in editor
+        const existingProj = existingProjects.find((p) => p.id === defaultProjectId);
+        if (existingProj) {
+          const serialized = serializeProjectToMarkdown(existingProj);
+          setMarkdownText(serialized);
+          setActiveFileName(`${existingProj.name.replace(/\s+/g, '_')}.md`);
+        }
         setStage('editor');
       } else {
+        // New project upload: starts 100% clean with NO synthetic file pre-loaded
         setStage('upload');
-        setUploadProgress(100);
+        setTargetMode('new');
+        setActiveFileName('');
+        setActiveFileSize('');
+        setFileExtension('MD');
+        setUploadProgress(0);
+        setUploadStatus('idle');
+        setMarkdownText('');
       }
-      setShowToast(false);
     }
-  }, [isOpen, defaultProjectId]);
+  }, [isOpen, defaultProjectId, existingProjects]);
 
   if (!isOpen) return null;
+
+  // Real file stream upload handler
+  const handleRealFileUpload = async (file: File) => {
+    if (!file) return;
+
+    // Check valid format (.md, .txt, .markdown)
+    const name = file.name;
+    const ext = name.split('.').pop()?.toUpperCase() || 'MD';
+    const isValid = name.endsWith('.md') || name.endsWith('.txt') || name.endsWith('.markdown');
+
+    if (!isValid) {
+      setErrorMessage('Please upload a valid Markdown file (.md or .txt)');
+      setUploadStatus('error');
+      soundManager.playTick();
+      return;
+    }
+
+    setErrorMessage(null);
+    setActiveFileName(name);
+    setFileExtension(ext === 'MARKDOWN' ? 'MD' : ext);
+
+    const sizeInKb = (file.size / 1024).toFixed(1);
+    const sizeFormatted = file.size > 1048576 
+      ? `${(file.size / 1048576).toFixed(2)} MB` 
+      : `${sizeInKb} KB`;
+    setActiveFileSize(sizeFormatted);
+
+    setUploadStatus('reading');
+    setUploadProgress(0);
+
+    try {
+      const totalBytes = file.size;
+      // Real streaming chunks proportional to file size
+      const chunkStep = Math.max(512, Math.floor(totalBytes / 18));
+      let currentBytes = 0;
+
+      while (currentBytes < totalBytes) {
+        currentBytes = Math.min(totalBytes, currentBytes + chunkStep);
+        const pct = totalBytes > 0 
+          ? Math.min(99, Math.round((currentBytes / totalBytes) * 100)) 
+          : 100;
+        setUploadProgress(pct);
+        // Micro-delay so browser paint cycle animates the Roland LED segments dynamically
+        await new Promise((r) => setTimeout(r, 14));
+      }
+
+      // Read real text from the actual file
+      const text = await file.text();
+      
+      setMarkdownText(text);
+      setUploadProgress(100);
+      setUploadStatus('completed');
+      soundManager.playTick();
+    } catch (err) {
+      console.error('File stream read error:', err);
+      setUploadStatus('error');
+      setErrorMessage('Failed to read file from disk. Please try again.');
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleRealFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  // Optional: sample starter if user doesn't have an external file on disk
+  const handleLoadSampleTemplate = async (tpl: typeof SAMPLE_TEMPLATES[0]) => {
+    setErrorMessage(null);
+    setActiveFileName(tpl.fileName);
+    setFileExtension('MD');
+    const bytes = new TextEncoder().encode(tpl.content).length;
+    setActiveFileSize(`${(bytes / 1024).toFixed(1)} KB`);
+    setUploadStatus('reading');
+    setUploadProgress(0);
+
+    // Stream the sample template in chunks to show the real segmented meter progress
+    for (let p = 15; p <= 100; p += 20) {
+      setUploadProgress(Math.min(100, p));
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    setMarkdownText(tpl.content);
+    setUploadProgress(100);
+    setUploadStatus('completed');
+    soundManager.playTick();
+  };
+
+  const handleResetFile = () => {
+    setActiveFileName('');
+    setActiveFileSize('');
+    setUploadProgress(0);
+    setUploadStatus('idle');
+    setMarkdownText('');
+    setErrorMessage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const parsed = parseProjectMarkdown(markdownText || 'Project: Untitled');
   const dummyProject: Project = {
@@ -208,56 +324,15 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
   };
   const stats = calculateProjectStats(dummyProject);
 
-  const handleFileUpload = (file: File) => {
-    if (!file) return;
-    setActiveFileName(file.name);
-    const sizeInKb = (file.size / 1024).toFixed(1);
-    setActiveFileSize(`${sizeInKb} KB`);
-    
-    // Simulate high-speed upload progress
-    setIsSimulatingUpload(true);
-    setUploadProgress(15);
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      if (content) {
-        setMarkdownText(content);
-        
-        // Progress steps
-        setTimeout(() => setUploadProgress(58), 80);
-        setTimeout(() => setUploadProgress(89), 160);
-        setTimeout(() => {
-          setUploadProgress(100);
-          setIsSimulatingUpload(false);
-          soundManager.playTick();
-        }, 240);
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleSelectTemplate = (tpl: typeof SAMPLE_TEMPLATES[0]) => {
-    soundManager.playTick();
-    setActiveFileName(tpl.fileName);
-    setActiveFileSize(tpl.sizeLabel);
-    setMarkdownText(tpl.content);
-    setUploadProgress(100);
-  };
-
-  // PROCEED ACTION: Imports the project, shows Toast, and reveals the styled Editor
+  // PROCEED: Imports the project into workspace, fires Toast, and opens the styled Editor
   const handleProceed = () => {
+    if (uploadStatus !== 'completed' || !markdownText.trim()) {
+      return;
+    }
+
     soundManager.playCompletionChime();
     
-    // Perform project import
+    // Import project
     onImport(
       {
         name: parsed.name,
@@ -271,15 +346,14 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
       targetMode === 'existing' ? selectedProjectId : undefined
     );
 
-    // Show luxury toast and switch to editor view
+    // Show toast and transition to editor
     setShowToast(true);
     setStage('editor');
   };
 
-  // FINISH & CLOSE ACTION: User finishes inspecting or editing
+  // FINISH & CLOSE: User is done reviewing/editing
   const handleFinishAndClose = () => {
     soundManager.playTick();
-    // Re-sync any manual changes made while in editor
     onImport(
       {
         name: parsed.name,
@@ -295,7 +369,6 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
     onClose();
   };
 
-  // Line numbers calculation for styled editor
   const lineCount = Math.max(1, markdownText.split('\n').length);
 
   return (
@@ -321,7 +394,7 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
           }`}
         >
           {/* ========================================================= */}
-          {/* STAGE 1: MODERN UPLOAD FILES UI (Pixel-exact to Mockup)   */}
+          {/* STAGE 1: REAL UPLOAD UI (Exact Mockup Match, Zero Synthetic) */}
           {/* ========================================================= */}
           {stage === 'upload' && (
             <div className="flex flex-col p-6 sm:p-7 space-y-5 animate-in fade-in duration-150">
@@ -359,11 +432,11 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
                   ref={fileInputRef}
                   type="file"
                   accept=".md,.txt,.markdown"
-                  onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
+                  onChange={(e) => e.target.files && e.target.files[0] && handleRealFileUpload(e.target.files[0])}
                   className="hidden"
                 />
 
-                {/* Stacked Files Icon with '+' badge (as seen in mockup) */}
+                {/* Stacked Files Icon with '+' badge (Mockup replica) */}
                 <div className="relative mb-5">
                   <div className="w-12 h-12 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-stone-300 shadow-inner">
                     <Files className="w-6 h-6 stroke-[1.7]" />
@@ -373,7 +446,7 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
                   </div>
                 </div>
 
-                {/* Monospace Headline with highlight */}
+                {/* Monospace Headline with Neon Highlight */}
                 <div className="font-mono text-xs tracking-wider text-stone-300 space-x-1 mb-1.5">
                   <span>DRAG AND DROP OR</span>
                   <span className="text-[#34D399] font-semibold hover:underline">
@@ -387,55 +460,82 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
                 </p>
               </div>
 
-              {/* Uploaded File Progress Card (Matches Mockup) */}
-              <div className="rounded-2xl p-4 bg-white/[0.025] border border-white/[0.06] flex items-center gap-4">
-                {/* File Icon with Extension Pill */}
-                <div className="relative shrink-0 w-11 h-12 rounded-xl bg-white/[0.04] border border-white/[0.08] flex flex-col items-center justify-center">
-                  <FileText className="w-5 h-5 text-stone-300 stroke-[1.6]" />
-                  <span className="text-[8px] font-mono font-bold tracking-wider text-stone-400 uppercase mt-0.5">
-                    MD
-                  </span>
+              {/* Error Alert */}
+              {errorMessage && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-2.5 text-xs text-rose-300 font-sans">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{errorMessage}</span>
                 </div>
+              )}
 
-                {/* Info & Segmented Progress Bar */}
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-stone-200 font-medium truncate pr-2">
-                      {activeFileName}
-                    </span>
-                    <span className="text-stone-400 font-mono text-[11px] shrink-0">
-                      {uploadProgress}%
+              {/* Real Upload Progress Card (Renders only when a real file is chosen or uploaded) */}
+              {uploadStatus !== 'idle' ? (
+                <div className="rounded-2xl p-4 bg-white/[0.025] border border-white/[0.06] flex items-center gap-4 transition-all">
+                  {/* File Icon with Dynamic Extension Pill */}
+                  <div className="relative shrink-0 w-11 h-12 rounded-xl bg-white/[0.04] border border-white/[0.08] flex flex-col items-center justify-center">
+                    <FileText className="w-5 h-5 text-stone-300 stroke-[1.6]" />
+                    <span className="text-[8px] font-mono font-bold tracking-wider text-stone-400 uppercase mt-0.5">
+                      {fileExtension}
                     </span>
                   </div>
 
-                  {/* Audio / Matrix LED Segmented Bar */}
-                  <SegmentedProgressBar progress={uploadProgress} />
+                  {/* Info & Real Segmented Progress Bar */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="text-stone-200 font-medium truncate pr-2">
+                        {activeFileName}
+                      </span>
+                      <span className="text-stone-400 font-mono text-[11px] shrink-0">
+                        {uploadProgress}%
+                      </span>
+                    </div>
 
-                  <div className="flex items-center justify-between text-[11px] font-mono text-stone-500">
-                    <span>.md / {activeFileSize}</span>
-                    <span className="text-[#34D399] text-[10px] font-sans">
-                      {uploadProgress === 100 ? 'Ready to import' : 'Uploading...'}
-                    </span>
+                    {/* Audio / LED Matrix VU-meter Bar */}
+                    <SegmentedProgressBar progress={uploadProgress} />
+
+                    <div className="flex items-center justify-between text-[11px] font-mono text-stone-500">
+                      <span>.{fileExtension.toLowerCase()} / {activeFileSize}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-sans ${
+                          uploadStatus === 'completed' ? 'text-[#34D399]' : 'text-amber-400'
+                        }`}>
+                          {uploadStatus === 'completed' ? 'Ready to import' : 'Reading file...'}
+                        </span>
+                        <button
+                          onClick={handleResetFile}
+                          className="text-stone-500 hover:text-stone-300 transition-colors p-0.5"
+                          title="Remove file"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                /* Idle state: clean prompt */
+                <div className="rounded-2xl p-3.5 bg-white/[0.015] border border-dashed border-white/[0.06] flex items-center justify-between text-stone-500 text-xs font-mono">
+                  <span>No file selected</span>
+                  <span className="text-[11px] text-stone-600">Awaiting .md file</span>
+                </div>
+              )}
 
-              {/* Quick Sample Templates Pill Selector */}
+              {/* Sample Templates (Quiet secondary trigger, no synthetic preloading) */}
               <div className="space-y-1.5 pt-1">
                 <div className="flex items-center justify-between text-[11px] font-sans text-stone-400">
-                  <span>Or start from a sample template:</span>
+                  <span>Need a sample markdown to test?</span>
                   <button
                     onClick={() => setStage('editor')}
                     className="text-stone-400 hover:text-white underline text-[11px] font-sans cursor-pointer transition-colors"
                   >
-                    Open manual editor →
+                    Open blank editor →
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {SAMPLE_TEMPLATES.map((tpl, i) => (
                     <button
                       key={i}
-                      onClick={() => handleSelectTemplate(tpl)}
+                      onClick={() => handleLoadSampleTemplate(tpl)}
                       className={`px-3 py-1.5 rounded-xl border text-xs font-sans transition-all cursor-pointer ${
                         activeFileName === tpl.fileName
                           ? 'bg-[#34D399]/10 border-[#34D399]/40 text-[#34D399]'
@@ -452,11 +552,21 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
               <div className="pt-2">
                 <motion.button
                   whileTap={{ scale: 0.98 }}
-                  disabled={isSimulatingUpload}
+                  disabled={uploadStatus !== 'completed'}
                   onClick={handleProceed}
-                  className="w-full py-3 px-5 rounded-2xl bg-[#34D399] hover:bg-[#22C55E] text-[#0A0D08] font-sans font-semibold text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(52,211,153,0.3)] transition-all cursor-pointer disabled:opacity-50"
+                  className={`w-full py-3 px-5 rounded-2xl font-sans font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+                    uploadStatus === 'completed'
+                      ? 'bg-[#34D399] hover:bg-[#22C55E] text-[#0A0D08] shadow-[0_0_20px_rgba(52,211,153,0.3)] cursor-pointer'
+                      : 'bg-white/[0.05] text-stone-500 border border-white/[0.08] cursor-not-allowed'
+                  }`}
                 >
-                  <span>Proceed to Import & Review</span>
+                  <span>
+                    {uploadStatus === 'completed'
+                      ? 'Proceed to Import & Review'
+                      : uploadStatus === 'reading'
+                      ? 'Reading File...'
+                      : 'Select a Markdown File to Proceed'}
+                  </span>
                   <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                 </motion.button>
               </div>
@@ -464,7 +574,7 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
           )}
 
           {/* ========================================================= */}
-          {/* STAGE 2: STYLED MARKDOWN EDITOR WITH PROMINENT CLOSE      */}
+          {/* STAGE 2: STYLED MARKDOWN EDITOR (Focus on Close Action)    */}
           {/* ========================================================= */}
           {stage === 'editor' && (
             <div className="flex flex-col h-full max-h-[90vh] animate-in fade-in duration-200">
@@ -481,7 +591,7 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
                       <CheckCircle2 className="w-4 h-4 text-[#34D399] shrink-0" />
                       <span>Project successfully imported to workspace!</span>
                       <span className="text-stone-300 hidden sm:inline">
-                        You can review phases below, or close when ready.
+                        Review the markdown below or close when ready.
                       </span>
                     </div>
 
@@ -495,7 +605,7 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
                 )}
               </AnimatePresence>
 
-              {/* Editor Header: Prominently Spot the Close Action */}
+              {/* Editor Header: High-Visibility Close Focus */}
               <div className="px-5 sm:px-6 py-3.5 border-b border-white/[0.08] flex items-center justify-between gap-3 bg-[#141517]">
                 <div className="flex items-center gap-3 min-w-0">
                   <button
@@ -525,9 +635,8 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
                   )}
                 </div>
 
-                {/* HIGH VISIBILITY CLOSE BUTTON AREA (As user requested to "spot the close more") */}
+                {/* Spot the Close Action with High Visual Contrast */}
                 <div className="flex items-center gap-2.5 shrink-0">
-                  {/* Glowing High-Contrast Done / Close Button */}
                   <motion.button
                     whileTap={{ scale: 0.96 }}
                     onClick={handleFinishAndClose}
@@ -538,7 +647,6 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
                     <span>Done & Close</span>
                   </motion.button>
 
-                  {/* Accented Close 'X' Button */}
                   <button
                     onClick={handleFinishAndClose}
                     className="p-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-stone-300 hover:text-white transition-colors cursor-pointer border border-white/[0.08]"
@@ -549,7 +657,7 @@ export const ImportMarkdownModal: React.FC<ImportMarkdownModalProps> = ({
                 </div>
               </div>
 
-              {/* Editor Tabs & Toolbar */}
+              {/* Editor Tabs & Destination Control */}
               <div className="px-5 sm:px-6 py-2 border-b border-white/[0.06] flex items-center justify-between gap-3 bg-[#111214] text-xs font-sans">
                 {/* Segmented Tab Controls */}
                 <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/[0.05]">

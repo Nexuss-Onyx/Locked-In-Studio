@@ -159,18 +159,23 @@ export default function App() {
   };
 
   const handleStartLockInWithTodo = (todoTitle: string, projectId: string) => {
-    const syntheticTask: Task = {
-      id: `task-focus-${Date.now()}`,
-      title: todoTitle,
-      projectId,
-      deadline: new Date().toISOString(),
-      priority: 'high',
-      status: 'in_progress',
-      subtasks: [],
-      tags: ['Project Milestone'],
-      createdAt: new Date().toISOString(),
-    };
-    setSelectedLockInTask(syntheticTask);
+    // Check if task already exists or create real persistent task
+    const existingTask = tasks.find(
+      (t) => t.title.toLowerCase() === todoTitle.toLowerCase() && t.projectId === projectId
+    );
+    if (existingTask) {
+      setSelectedLockInTask(existingTask);
+    } else {
+      const realTask = StorageService.createTask({
+        title: todoTitle,
+        projectId,
+        priority: 'high',
+        deadline: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+        tags: ['Project Milestone'],
+      });
+      setTasks(StorageService.getTasks());
+      setSelectedLockInTask(realTask);
+    }
     setCurrentView('lockin');
   };
 
