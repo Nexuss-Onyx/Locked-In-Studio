@@ -137,19 +137,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* 1. SLIM IMMEDIATE FOCUS BANNER (Aura Luxe Warm Obsidian) */}
       {/* ========================================================= */}
       {criticalTask ? (
-        <div className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#241F1A]/90 via-[#181512]/80 to-[#0F0D0B] border border-[#D8C9A3]/25 shadow-lg flex items-center justify-between gap-3">
+        <div className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#223020]/90 via-[#1A2417]/80 to-[#121B10] border border-[#ABC8A2]/30 shadow-lg flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-[#D8C9A3]/10 border border-[#D8C9A3]/30 flex items-center justify-center shrink-0 text-[#D8C9A3]">
+            <div className="w-7 h-7 rounded-lg bg-[#ABC8A2]/15 border border-[#ABC8A2]/35 flex items-center justify-center shrink-0 text-[#ABC8A2]">
               <LuxeApertureIcon className="w-3.5 h-3.5" />
             </div>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[11px] font-sans text-[#D8C9A3] font-medium tracking-wide shrink-0 hidden xs:inline">
+              <span className="text-[11px] font-sans text-[#ABC8A2] font-medium tracking-wide shrink-0 hidden xs:inline">
                 Immediate Focus:
               </span>
-              <span className="text-xs sm:text-[13px] font-medium text-[#F7F4EE] truncate">
+              <span className="text-xs sm:text-[13px] font-medium text-[#F4F8F3] truncate">
                 {criticalTask.title}
               </span>
-              <span className="text-[10px] font-mono text-stone-500 uppercase shrink-0 hidden md:inline">
+              <span className="text-[10px] font-mono text-stone-400 uppercase shrink-0 hidden md:inline">
                 · {criticalTask.priority}
               </span>
             </div>
@@ -163,7 +163,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               }}
               className="px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-[11px] font-sans text-stone-300 hover:text-white transition-all cursor-pointer flex items-center gap-1"
             >
-              <Check className="w-3 h-3 text-[#D8C9A3]" />
+              <Check className="w-3 h-3 text-[#ABC8A2]" />
               <span className="hidden sm:inline">Done</span>
             </button>
             <motion.button
@@ -172,7 +172,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 soundManager.playTick();
                 onStartLockInWithTask(criticalTask);
               }}
-              className="px-3.5 py-1 rounded-xl glass-button-primary text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_12px_rgba(216,201,163,0.25)]"
+              className="px-3.5 py-1 rounded-xl glass-button-primary text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_16px_rgba(171,200,162,0.3)]"
             >
               <Play className="w-2.5 h-2.5 fill-current" />
               <span>Lock-In</span>
@@ -182,12 +182,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       ) : (
         <div className="px-4 py-2.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-stone-400 font-sans">
-            <LuxeApertureIcon className="w-3.5 h-3.5 text-[#D8C9A3]" />
+            <LuxeApertureIcon className="w-3.5 h-3.5 text-[#ABC8A2]" />
             <span>All priority milestones clear. Ready for your next focus session.</span>
           </div>
           <button
             onClick={() => onOpenImport()}
-            className="text-xs text-[#D8C9A3] hover:underline font-sans cursor-pointer"
+            className="text-xs text-[#ABC8A2] hover:underline font-sans cursor-pointer"
           >
             + Import Markdown Project
           </button>
@@ -201,26 +201,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Active Tasks */}
         <motion.div
           whileHover={{ y: -1.5 }}
-          className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between border border-white/[0.06] hover:border-[#D8C9A3]/30 transition-colors"
+          className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between border border-white/[0.08] hover:border-[#ABC8A2]/35 transition-colors"
         >
           <div className="h-7 flex items-center justify-between gap-1">
-            <span className="text-xs font-medium text-stone-400 font-sans truncate">
+            <span className="text-xs font-medium text-stone-300 font-sans truncate">
               Active Tasks
             </span>
-            <LuxeTaskIcon className="w-3.5 h-3.5 text-[#D8C9A3]/70 shrink-0" />
+            <LuxeTaskIcon className="w-3.5 h-3.5 text-[#ABC8A2] shrink-0" />
           </div>
 
           <div className="my-1.5 flex items-baseline gap-1.5">
-            <span className="text-3xl sm:text-4xl font-serif font-light italic text-[#F7F4EE] leading-none">
+            <span className="text-3xl sm:text-4xl font-serif font-light italic text-[#F4F8F3] leading-none">
               {pendingTasks.length}
             </span>
-            <span className="text-[11px] font-sans text-stone-500">
+            <span className="text-[11px] font-sans text-stone-400">
               in flight
             </span>
           </div>
 
           <div className="text-[11px] text-stone-400 font-sans truncate flex items-center gap-1 min-h-[16px]">
-            <span className="text-[#F7F4EE] font-medium">{completedTasks.length}</span>
+            <span className="text-[#F4F8F3] font-medium">{completedTasks.length}</span>
             <span className="truncate">archived</span>
           </div>
         </motion.div>
@@ -228,20 +228,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Current Streak */}
         <motion.div
           whileHover={{ y: -1.5 }}
-          className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between border border-white/[0.06] hover:border-[#D8C9A3]/30 transition-colors"
+          className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between border border-white/[0.08] hover:border-[#ABC8A2]/35 transition-colors"
         >
           <div className="h-7 flex items-center justify-between gap-1">
-            <span className="text-xs font-medium text-stone-400 font-sans truncate">
+            <span className="text-xs font-medium text-stone-300 font-sans truncate">
               Current Streak
             </span>
-            <LuxeStreakIcon className="w-3.5 h-3.5 text-[#D8C9A3] shrink-0" />
+            <LuxeStreakIcon className="w-3.5 h-3.5 text-[#ABC8A2] shrink-0" />
           </div>
 
           <div className="my-1.5 flex items-baseline gap-1">
-            <span className="text-3xl sm:text-4xl font-serif font-light italic text-[#D8C9A3] leading-none">
+            <span className="text-3xl sm:text-4xl font-serif font-light italic text-[#ABC8A2] leading-none">
               {activity.currentStreak}
             </span>
-            <span className="text-xs font-sans text-[#D8C9A3]/80 font-medium">
+            <span className="text-xs font-sans text-[#ABC8A2]/90 font-medium">
               days
             </span>
           </div>
@@ -255,17 +255,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Today's Focus */}
         <motion.div
           whileHover={{ y: -1.5 }}
-          className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between border border-white/[0.06] hover:border-[#D8C9A3]/30 transition-colors"
+          className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between border border-white/[0.08] hover:border-[#ABC8A2]/35 transition-colors"
         >
           <div className="h-7 flex items-center justify-between gap-1">
-            <span className="text-xs font-medium text-stone-400 font-sans truncate">
+            <span className="text-xs font-medium text-stone-300 font-sans truncate">
               Today's Focus
             </span>
-            <LuxeFocusIcon className="w-3.5 h-3.5 text-[#D8C9A3]/70 shrink-0" />
+            <LuxeFocusIcon className="w-3.5 h-3.5 text-[#ABC8A2] shrink-0" />
           </div>
 
           <div className="my-1.5 flex items-baseline gap-1">
-            <span className="text-3xl sm:text-4xl font-serif font-light italic text-[#F7F4EE] leading-none">
+            <span className="text-3xl sm:text-4xl font-serif font-light italic text-[#F4F8F3] leading-none">
               {todayFocusMinutes}
             </span>
             <span className="text-xs font-sans text-stone-400 font-medium">
@@ -274,7 +274,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="text-[11px] text-stone-400 font-sans truncate flex items-center gap-1 min-h-[16px]">
-            <span className="text-[#F7F4EE] font-medium">{todaySessions.length}</span>
+            <span className="text-[#F4F8F3] font-medium">{todaySessions.length}</span>
             <span className="truncate">sprints</span>
           </div>
         </motion.div>
@@ -282,17 +282,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Velocity Rate */}
         <motion.div
           whileHover={{ y: -1.5 }}
-          className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between border border-white/[0.06] hover:border-[#D8C9A3]/30 transition-colors"
+          className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between border border-white/[0.08] hover:border-[#ABC8A2]/35 transition-colors"
         >
           <div className="h-7 flex items-center justify-between gap-1">
-            <span className="text-xs font-medium text-stone-400 font-sans truncate">
+            <span className="text-xs font-medium text-stone-300 font-sans truncate">
               Velocity Rate
             </span>
-            <LuxeVelocityIcon className="w-3.5 h-3.5 text-[#D8C9A3]/70 shrink-0" />
+            <LuxeVelocityIcon className="w-3.5 h-3.5 text-[#ABC8A2] shrink-0" />
           </div>
 
           <div className="my-1.5 flex items-baseline gap-1">
-            <span className="text-3xl sm:text-4xl font-serif font-light italic text-[#F7F4EE] leading-none">
+            <span className="text-3xl sm:text-4xl font-serif font-light italic text-[#F4F8F3] leading-none">
               {tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0}
             </span>
             <span className="text-xs font-sans text-stone-400 font-medium">
@@ -301,7 +301,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="text-[11px] text-stone-400 font-sans truncate flex items-center gap-1 min-h-[16px]">
-            <span className="text-[#F7F4EE] font-medium">{tasks.length}</span>
+            <span className="text-[#F4F8F3] font-medium">{tasks.length}</span>
             <span className="truncate">tracked</span>
           </div>
         </motion.div>
