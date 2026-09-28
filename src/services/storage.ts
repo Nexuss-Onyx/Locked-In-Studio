@@ -130,6 +130,9 @@ export const StorageService = {
     // Also reassign or delete tasks under this project
     const tasks = this.getTasks().map(t => t.projectId === id ? { ...t, projectId: 'unassigned' } : t);
     this.saveTasks(tasks);
+    if (SupabaseService.isConfigured()) {
+      SupabaseService.deleteProject(id).catch(() => {});
+    }
   },
 
   // Tasks
@@ -285,6 +288,9 @@ export const StorageService = {
   deleteTask(id: string) {
     const tasks = this.getTasks().filter(t => t.id !== id);
     this.saveTasks(tasks);
+    if (SupabaseService.isConfigured()) {
+      SupabaseService.deleteTask(id).catch(() => {});
+    }
   },
 
   toggleSubtask(taskId: string, subtaskId: string): Task | null {

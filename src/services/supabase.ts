@@ -118,6 +118,18 @@ export const SupabaseService = {
     }
   },
 
+  async deleteProject(id: string): Promise<boolean> {
+    const client = getSupabaseClient();
+    if (!client) return false;
+    try {
+      const { error } = await client.from('projects').delete().eq('id', id);
+      return !error;
+    } catch (e) {
+      console.warn('Supabase deleteProject error:', e);
+      return false;
+    }
+  },
+
   // Tasks
   async fetchTasks(): Promise<Task[] | null> {
     const client = getSupabaseClient();
@@ -177,6 +189,18 @@ export const SupabaseService = {
       return !error;
     } catch (e) {
       console.warn('Supabase upsertTasks error:', e);
+      return false;
+    }
+  },
+
+  async deleteTask(id: string): Promise<boolean> {
+    const client = getSupabaseClient();
+    if (!client) return false;
+    try {
+      const { error } = await client.from('tasks').delete().eq('id', id);
+      return !error;
+    } catch (e) {
+      console.warn('Supabase deleteTask error:', e);
       return false;
     }
   },
