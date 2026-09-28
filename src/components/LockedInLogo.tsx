@@ -55,46 +55,35 @@ export const LockedInLogo: React.FC<LockedInLogoProps> = ({
           fill="none"
         />
 
-        {/* 3. SINGLE CLOCK HAND (Soft Sage) - PINNED STRICTLY TO PIVOT (32, 37) */}
-        <motion.g
-          style={{
-            transformOrigin: '32px 37px',
-            transformBox: 'view-box',
-          }}
-          animate={
-            isLockedIn
-              ? { rotate: [0, 360] }
-              : { rotate: 0 }
-          }
-          transition={
-            isLockedIn
-              ? { duration: 60, ease: 'linear', repeat: Infinity }
-              : { duration: 0.3 }
-          }
-        >
-          {/* Main Hand extending up from center (32, 37) to (32, 24) */}
+        {/* 3. CLOCK MECHANISM WITH IMMUTABLE CENTER PIVOT AT (32, 37) */}
+        <g transform="translate(32, 37)">
+          {/* Rotating Hand: starts strictly at (0, 0) and extends to (0, -13) */}
           <line
-            x1="32"
-            y1="37"
-            x2="32"
-            y2="24"
+            key={isLockedIn ? 'locked-active' : 'locked-idle'}
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="-13"
             stroke="#ABC8A2"
             strokeWidth="3.5"
             strokeLinecap="round"
-          />
-          {/* Symmetrical counterbalance ensuring bounding box center is exactly (32, 37) across all browsers */}
-          <line
-            x1="32"
-            y1="37"
-            x2="32"
-            y2="50"
-            stroke="transparent"
-            strokeWidth="3.5"
-          />
-        </motion.g>
+          >
+            {isLockedIn && (
+              <animateTransform
+                attributeName="transform"
+                type="rotate"
+                from="0 0 0"
+                to="360 0 0"
+                dur="60s"
+                repeatCount="indefinite"
+                begin="0s"
+              />
+            )}
+          </line>
 
-        {/* Center Pivot Point Dot */}
-        <circle cx="32" cy="37" r="2.2" fill="#ABC8A2" />
+          {/* Center Pivot Point Dot pinned directly on the (0, 0) origin */}
+          <circle cx="0" cy="0" r="2.2" fill="#ABC8A2" />
+        </g>
       </svg>
     </div>
   );
