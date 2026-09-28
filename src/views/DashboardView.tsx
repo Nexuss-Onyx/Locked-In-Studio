@@ -318,16 +318,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </span>
           </div>
 
-          <div className="text-[11px] text-stone-400 font-sans truncate flex items-center justify-between min-h-[16px]">
-            <span>
-              <span className="text-[#F4F8F3] font-medium">{todaySessions.length}</span> sprints
-            </span>
-            {isTimerRunning && (
-              <span className="text-[#E5C158] font-mono text-[10px] flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#E5C158] animate-ping" />
-                Live +{liveFocusMinutes}m
-              </span>
-            )}
+          <div className="text-[11px] text-stone-400 font-sans truncate flex items-center gap-1 min-h-[16px]">
+            <span className="text-[#F4F8F3] font-medium">{todaySessions.length}</span>
+            <span className="truncate">sprints</span>
           </div>
         </motion.div>
 
